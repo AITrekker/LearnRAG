@@ -1,0 +1,9 @@
+# PyTorch version constraints to prevent downgrades
+# CRITICAL: These versions are from CUDA 12.8 index for RTX 5070 (sm_120) support
+torch>=2.0.0
+torchvision>=0.15.0
+torchaudio>=2.0.0
+
+# HuggingFace constraints for compatibility
+transformers>=4.40.0
+huggingface-hub>=0.26.0

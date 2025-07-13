@@ -1,0 +1,254 @@
+DataStream Pro - User Manual
+
+GETTING STARTED GUIDE
+Version 2.4.0 | March 2024
+
+Welcome to DataStream Pro! This user manual will help you get started with our real-time data processing platform.
+
+TABLE OF CONTENTS
+1. Account Setup
+2. Creating Your First Stream
+3. Sending Data
+4. Monitoring and Analytics
+5. Setting Up Alerts
+6. Data Export Options
+7. Troubleshooting
+8. Support Resources
+
+1. ACCOUNT SETUP
+
+Creating Your Account:
+1. Visit https://app.datastreamapp.com/signup
+2. Enter your email and create a secure password
+3. Verify your email address
+4. Complete your organization profile
+5. Choose your subscription plan
+
+Getting Your API Key:
+1. Navigate to Settings > API Keys
+2. Click "Generate New API Key"
+3. Copy and securely store your API key
+4. Never share your API key publicly
+
+Inviting Team Members:
+1. Go to Settings > Team Management
+2. Click "Invite Member"
+3. Enter email address and select role:
+   - Owner: Full access to all features
+   - Admin: Manage streams and team members
+   - Developer: Create and manage streams
+   - Viewer: Read-only access to data and dashboards
+
+2. CREATING YOUR FIRST STREAM
+
+Step 1: Navigate to Streams
+- Click "Streams" in the main navigation
+- Click the "Create Stream" button
+
+Step 2: Configure Stream Settings
+- Stream Name: Choose a descriptive name (e.g., "user_events")
+- Description: Brief explanation of data purpose
+- Data Retention: Select how long to keep data (default: 90 days)
+- Processing Mode: Real-time or Batch
+
+Step 3: Define Data Schema (Optional)
+- Event Type: Name for your event category
+- Field Definitions: Specify expected data fields
+- Validation Rules: Set required fields and data types
+
+Example Stream Configuration:
+{
+  "name": "website_analytics",
+  "description": "User interactions on company website",
+  "retention_days": 365,
+  "schema": {
+    "user_id": {"type": "string", "required": true},
+    "event_type": {"type": "string", "required": true},
+    "timestamp": {"type": "datetime", "required": true},
+    "page_url": {"type": "string", "required": false},
+    "session_id": {"type": "string", "required": false}
+  }
+}
+
+3. SENDING DATA
+
+Method 1: Web Dashboard Upload
+1. Navigate to your stream
+2. Click "Upload Data"
+3. Choose file format (JSON, CSV)
+4. Select file and click "Upload"
+5. Review data preview and confirm
+
+Method 2: API Integration
+Use our REST API to send data programmatically:
+
+curl -X POST https://api.datastreamapp.com/v2/ingest/events \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "stream_id": "website_analytics",
+    "timestamp": "2024-03-15T14:30:00Z",
+    "event_type": "page_view",
+    "data": {
+      "user_id": "user_12345",
+      "page_url": "/products",
+      "session_id": "sess_67890"
+    }
+  }'
+
+Method 3: SDK Integration
+Using our Python SDK:
+
+from datastream import DataStreamClient
+
+client = DataStreamClient(api_key="YOUR_API_KEY")
+
+# Send single event
+client.ingest.send_event(
+    stream_id="website_analytics",
+    event_type="button_click",
+    data={
+        "user_id": "user_12345",
+        "button_name": "add_to_cart",
+        "product_id": "prod_456"
+    }
+)
+
+# Send batch events
+events = [
+    {"event_type": "page_view", "data": {"user_id": "user_1", "page": "/home"}},
+    {"event_type": "page_view", "data": {"user_id": "user_2", "page": "/about"}}
+]
+client.ingest.send_batch(stream_id="website_analytics", events=events)
+
+4. MONITORING AND ANALYTICS
+
+Real-Time Dashboard:
+- Stream health indicators
+- Events per second metrics
+- Processing latency charts
+- Error rate monitoring
+
+Key Metrics Explained:
+- Ingestion Rate: Events received per second
+- Processing Latency: Time from ingestion to availability
+- Error Rate: Percentage of failed processing attempts
+- Storage Usage: Current data volume and retention
+
+Custom Dashboards:
+1. Click "Dashboards" in navigation
+2. Select "Create Dashboard"
+3. Add widgets:
+   - Time series charts
+   - Bar charts and histograms
+   - Pie charts for categorical data
+   - Number widgets for KPIs
+
+Query Builder:
+- Visual interface for data exploration
+- Filter by time range, event type, or custom fields
+- Aggregate functions: count, sum, average, min, max
+- Group by dimensions for segmentation
+
+5. SETTING UP ALERTS
+
+Creating Alerts:
+1. Navigate to Monitoring > Alerts
+2. Click "Create Alert"
+3. Configure alert conditions:
+   - Metric: Choose what to monitor
+   - Threshold: Set trigger value
+   - Time Window: Evaluation period
+   - Frequency: How often to check
+
+Alert Types:
+- Stream Health: Processing errors or downtime
+- Volume Anomalies: Unusual increase/decrease in events
+- Custom Metrics: Based on your data content
+- System Limits: Approaching rate limits or storage quotas
+
+Notification Channels:
+- Email: Send to multiple recipients
+- Slack: Post to specific channels
+- Webhooks: HTTP callbacks to your systems
+- SMS: Text message alerts (premium feature)
+
+Example Alert Configuration:
+- Metric: Error Rate
+- Condition: Greater than 5%
+- Time Window: 5 minutes
+- Recipients: dev-team@company.com
+- Message: "DataStream processing errors detected in {{stream_name}}"
+
+6. DATA EXPORT OPTIONS
+
+Export Formats:
+- JSON: Raw event data
+- CSV: Tabular format for analysis
+- Parquet: Columnar format for big data tools
+- Avro: Schema-aware binary format
+
+Export Methods:
+1. Manual Download:
+   - Navigate to stream
+   - Click "Export Data"
+   - Select date range and format
+   - Download when ready
+
+2. Scheduled Exports:
+   - Set up automated exports
+   - Choose frequency (daily, weekly, monthly)
+   - Configure delivery to S3, GCS, or email
+
+3. API Export:
+   - Use query endpoints to fetch data
+   - Implement pagination for large datasets
+   - Cache results for repeated queries
+
+7. TROUBLESHOOTING
+
+Common Issues:
+
+Authentication Errors:
+- Verify API key is correct and active
+- Check if key has proper permissions
+- Ensure key isn't expired
+
+Data Not Appearing:
+- Check stream processing status
+- Verify timestamp formats (ISO 8601)
+- Review data validation errors
+
+High Latency:
+- Monitor processing queue depth
+- Check for schema validation issues
+- Consider upgrading to higher tier
+
+Rate Limiting:
+- Review current usage in dashboard
+- Implement exponential backoff in code
+- Upgrade plan for higher limits
+
+8. SUPPORT RESOURCES
+
+Documentation:
+- API Reference: https://docs.datastreamapp.com/api
+- SDK Documentation: https://docs.datastreamapp.com/sdks
+- Video Tutorials: https://docs.datastreamapp.com/tutorials
+
+Support Channels:
+- In-app chat: Available 24/7
+- Email support: support@datastreamapp.com
+- Community forum: https://community.datastreamapp.com
+- Status page: https://status.datastreamapp.com
+
+Training Resources:
+- Getting Started Webinar: Weekly at 2 PM EST
+- Advanced Features Workshop: Monthly
+- Best Practices Guide: Available in documentation
+- Customer Success Manager: Available for Enterprise plans
+
+Feature Requests:
+Submit ideas at https://feedback.datastreamapp.com
+
+Remember: Always test your integration in our sandbox environment before deploying to production!

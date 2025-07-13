@@ -1,0 +1,18 @@
+# Include base requirements
+-r requirements-base.txt
+
+# Web framework & API
+fastapi==0.115.13
+uvicorn[standard]==0.34.3
+python-multipart==0.0.6
+
+# Configuration & validation
+pydantic==2.11.7
+pydantic-settings==2.3.4
+
+# HTTP & async
+aiofiles==23.2.1
+
+# Utilities
+python-magic==0.4.27
+PyPDF2==3.0.1

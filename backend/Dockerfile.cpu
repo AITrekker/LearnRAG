@@ -1,0 +1,50 @@
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements files
+COPY requirements-base.txt .
+COPY requirements.txt .
+COPY constraints.txt .
+
+# Install PyTorch CPU version
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+
+# Install base requirements (heavyweight packages)
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --upgrade-strategy only-if-needed -c constraints.txt -r requirements-base.txt
+
+# Install main requirements (lightweight packages)
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --upgrade-strategy only-if-needed -c constraints.txt -r requirements.txt
+
+# Test that ML libraries can be imported successfully
+RUN python -c "import torch; print(f'PyTorch version: {torch.__version__}'); \
+    print(f'CUDA available: {torch.cuda.is_available()}'); \
+    import transformers; print(f'Transformers version: {transformers.__version__}'); \
+    print('Core ML libraries imported successfully!')"
+
+# Copy application code
+COPY app/ ./app/
+
+# Create directories
+RUN mkdir -p models_cache internal_files \
+    /root/.cache/huggingface \
+    /root/.cache/transformers
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1
+ENV PYTHONPATH=/app
+ENV HF_HOME=/root/.cache/huggingface
+ENV TRANSFORMERS_CACHE=/root/.cache/transformers
+ENV MODELS_CACHE_DIR=/app/models_cache
+
+EXPOSE 8000
+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]

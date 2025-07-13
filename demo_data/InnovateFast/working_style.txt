@@ -1,0 +1,9 @@
+InnovateFast Working Style: Remote-First
+
+We are a remote-first company. We believe that top talent exists everywhere, and we trust our team to do their best work from wherever they are happiest.
+ 
+-   **Location Independence:** Your primary work location is wherever you choose. We have no central office.
+-   **Asynchronous Communication:** Our work is primarily asynchronous. We rely on written communication in tools like Slack and Notion to keep everyone in sync, minimizing unnecessary meetings and respecting different time zones.
+-   **Core Collaboration Hours:** We have a short window of core hours (e.g., 1 PM - 4 PM Eastern Time) to ensure there is some overlap for synchronous collaboration when needed.
+-   **Results, Not Hours:** We measure success by the impact you make, not the hours you are online. You have the flexibility to structure your day in a way that works for you, your team, and our users.
+-   **In-Person Meetups:** We value face-to-face connection and sponsor company-wide offsites and team meetups a few times a year to collaborate and build relationships. 

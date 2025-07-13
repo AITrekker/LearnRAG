@@ -1,0 +1,8 @@
+The InnovateFast Culture
+
+Our culture is defined by speed, ownership, and a passion for learning. We are a small team of high-impact individuals who thrive on making things happen.
+ 
+-   **Move Fast and Learn:** We have a bias for action. We build, ship, and learn in rapid cycles. We celebrate experimentation and see failure as a learning opportunity.
+-   **Take Ownership:** We are all owners. Everyone has the autonomy to make decisions and a responsibility to see them through. We take pride in our work and are accountable for the results.
+-   **Stay Curious:** We are endlessly curious and constantly learning. We challenge assumptions, seek out new ideas, and are open to feedback.
+-   **User-First:** Our users are at the center of everything we do. We are deeply committed to understanding their needs and building products they love. 
