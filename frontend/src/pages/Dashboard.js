@@ -7,27 +7,33 @@ import apiService from '../services/api';
 const Dashboard = ({ apiKey }) => {
   const queryClient = useQueryClient();
 
-  const { data: tenantInfo, isLoading: infoLoading } = useQuery(
+  const { data: tenantInfo, isLoading: infoLoading, error: infoError } = useQuery(
     'tenantInfo',
     apiService.getTenantInfo,
     {
       enabled: !!apiKey,
+      retry: 1,
+      staleTime: 30000,
     }
   );
 
-  const { data: tenantStats, isLoading: statsLoading } = useQuery(
+  const { data: tenantStats, isLoading: statsLoading, error: statsError } = useQuery(
     'tenantStats',
     apiService.getTenantStats,
     {
       enabled: !!apiKey,
+      retry: 1,
+      staleTime: 30000,
     }
   );
 
-  const { data: files, isLoading: filesLoading } = useQuery(
+  const { data: files, isLoading: filesLoading, error: filesError } = useQuery(
     'tenantFiles',
     apiService.getTenantFiles,
     {
       enabled: !!apiKey,
+      retry: 1,
+      staleTime: 30000,
     }
   );
 
@@ -40,6 +46,11 @@ const Dashboard = ({ apiKey }) => {
       }
     }
   );
+
+  // Show errors if any API calls fail
+  if (infoError || statsError || filesError) {
+    console.error('Dashboard API errors:', { infoError, statsError, filesError });
+  }
 
   if (infoLoading || statsLoading) {
     return (

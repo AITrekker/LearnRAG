@@ -19,7 +19,16 @@ const Header = ({ onLogout, tenant }) => {
           </motion.div>
           <h1 className="text-xl font-bold text-gray-900">LearnRAG</h1>
           <span className="ml-2 text-sm text-gray-500">
-            {tenant ? `${tenant.name} • Interactive RAG Learning Platform` : 'Interactive RAG Learning Platform'}
+            {tenant ? (
+              <>
+                <span className="font-semibold text-primary-600 bg-primary-50 px-2 py-1 rounded">
+                  {tenant.name}
+                </span>
+                <span className="ml-2">• Interactive RAG Learning Platform</span>
+              </>
+            ) : (
+              'Interactive RAG Learning Platform'
+            )}
           </span>
         </div>
 

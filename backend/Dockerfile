@@ -53,4 +53,4 @@ ENV MODELS_CACHE_DIR=/app/models_cache
 EXPOSE 8000
 
 # Start the application
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--access-log", "--log-level", "info"]

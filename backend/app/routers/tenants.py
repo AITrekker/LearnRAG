@@ -5,7 +5,7 @@ from typing import List
 
 from app.core.database import get_db
 from app.models.database import Tenant, File, Embedding
-from app.models.schemas import TenantInfo, File as FileSchema
+from app.models.schemas import TenantInfo, File as FileSchema, GeneralEmbeddingStatus
 from app.routers.auth import get_current_tenant
 from app.services.tenant_service import TenantService
 
@@ -112,3 +112,65 @@ async def get_tenant_stats(
             "strategies_used": embedding_stats.strategies_used or 0
         }
     }
+
+
+@router.get("/embedding-summary", response_model=GeneralEmbeddingStatus)
+async def get_embedding_summary(
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get embedding summary for the tenant"""
+    # Get total file count
+    total_files_result = await db.execute(
+        select(func.count(File.id)).where(File.tenant_id == tenant.id)
+    )
+    total_files = total_files_result.scalar() or 0
+    
+    # Get files with embeddings count
+    files_with_embeddings_result = await db.execute(
+        select(func.count(func.distinct(Embedding.file_id)))
+        .join(File)
+        .where(File.tenant_id == tenant.id)
+    )
+    files_with_embeddings = files_with_embeddings_result.scalar() or 0
+    
+    # Get total chunks count
+    total_chunks_result = await db.execute(
+        select(func.count(Embedding.id))
+        .join(File)
+        .where(File.tenant_id == tenant.id)
+    )
+    total_chunks = total_chunks_result.scalar() or 0
+    
+    # Get available models and strategies
+    models_result = await db.execute(
+        select(func.distinct(Embedding.embedding_model))
+        .join(File)
+        .where(File.tenant_id == tenant.id)
+    )
+    available_models = [row[0] for row in models_result.fetchall()]
+    
+    strategies_result = await db.execute(
+        select(func.distinct(Embedding.chunking_strategy))
+        .join(File)
+        .where(File.tenant_id == tenant.id)
+    )
+    available_strategies = [row[0] for row in strategies_result.fetchall()]
+    
+    # Get last updated timestamp
+    last_updated_result = await db.execute(
+        select(func.max(Embedding.created_at))
+        .join(File)
+        .where(File.tenant_id == tenant.id)
+    )
+    last_updated = last_updated_result.scalar()
+    
+    return GeneralEmbeddingStatus(
+        total_files=total_files,
+        files_with_embeddings=files_with_embeddings,
+        files_without_embeddings=total_files - files_with_embeddings,
+        total_chunks=total_chunks,
+        available_models=available_models,
+        available_strategies=available_strategies,
+        last_updated=last_updated
+    )

@@ -4,6 +4,24 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
 class ApiService {
   constructor() {
+    this.initializeClient();
+    
+    // Bind all methods to preserve 'this' context
+    this.validateApiKey = this.validateApiKey.bind(this);
+    this.getTenantInfo = this.getTenantInfo.bind(this);
+    this.syncFiles = this.syncFiles.bind(this);
+    this.getTenantFiles = this.getTenantFiles.bind(this);
+    this.getTenantStats = this.getTenantStats.bind(this);
+    this.generateEmbeddings = this.generateEmbeddings.bind(this);
+    this.getAvailableModels = this.getAvailableModels.bind(this);
+    this.getEmbeddingStatus = this.getEmbeddingStatus.bind(this);
+    this.deleteEmbeddings = this.deleteEmbeddings.bind(this);
+    this.search = this.search.bind(this);
+    this.getRagTechniques = this.getRagTechniques.bind(this);
+    this.getRagSessions = this.getRagSessions.bind(this);
+  }
+
+  initializeClient() {
     this.client = axios.create({
       baseURL: `${API_BASE_URL}/api`,
       headers: {
@@ -46,21 +64,33 @@ class ApiService {
 
   // Tenants
   async getTenantInfo() {
+    if (!this.client) {
+      this.initializeClient();
+    }
     const response = await this.client.get('/tenants/info');
     return response.data;
   }
 
   async syncFiles() {
+    if (!this.client) {
+      this.initializeClient();
+    }
     const response = await this.client.post('/tenants/sync-files');
     return response.data;
   }
 
   async getTenantFiles() {
+    if (!this.client) {
+      this.initializeClient();
+    }
     const response = await this.client.get('/tenants/files');
     return response.data;
   }
 
   async getTenantStats() {
+    if (!this.client) {
+      this.initializeClient();
+    }
     const response = await this.client.get('/tenants/stats');
     return response.data;
   }

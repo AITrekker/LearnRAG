@@ -39,9 +39,6 @@ function App() {
               setApiKey(tenant.api_key);
               localStorage.setItem('apiKey', tenant.api_key);
               localStorage.setItem('selectedTenant', JSON.stringify(tenant));
-              // Small delay to ensure localStorage is set before components render
-              setTimeout(() => setLoading(false), 100);
-              return;
             } else {
               // Multiple tenants - show selector
               setShowTenantSelector(true);
@@ -137,14 +134,14 @@ function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <Router future={{ v7_relativeSplatPath: true }}>
+      <Router future={{ v7_relativeSplatPath: true, v7_startTransition: true }}>
         <div className="min-h-screen bg-gray-50">
           <Header onLogout={handleLogout} tenant={selectedTenant} />
           
           <div className="flex">
             <Sidebar />
             
-            <main className="flex-1 ml-64 p-6">
+            <main className="flex-1 ml-64 pt-20 p-6">
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
