@@ -8,7 +8,7 @@ DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@postgre
 if DATABASE_URL.startswith("postgresql://"):
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
 
-engine = create_async_engine(DATABASE_URL, echo=True)
+engine = create_async_engine(DATABASE_URL, echo=False)
 AsyncSessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 
@@ -17,9 +17,13 @@ class Base(DeclarativeBase):
 
 
 async def init_db():
+    # Import all models to ensure they're registered
+    from app.models import database
+    
     async with engine.begin() as conn:
-        # Tables are created by init.sql in docker-compose
-        pass
+        # Create all tables
+        await conn.run_sync(Base.metadata.create_all)
+        print("📊 Database tables created successfully")
 
 
 async def get_db():

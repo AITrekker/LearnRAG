@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
 from app.core.database import AsyncSessionLocal
-from app.models.database import Tenant, File
+from app.models.database import Tenant, File, TenantEmbeddingSettings
 
 
 class TenantService:
@@ -104,6 +104,16 @@ class TenantService:
             )
             db.add(tenant)
             await db.flush()  # Get the tenant ID
+            
+            # Create default embedding settings for new tenant
+            default_settings = TenantEmbeddingSettings(
+                tenant_id=tenant.id,
+                embedding_model="sentence-transformers/all-MiniLM-L6-v2",
+                chunking_strategy="fixed_size",
+                chunk_size=512,
+                chunk_overlap=50
+            )
+            db.add(default_settings)
             print(f"Created tenant: {slug} with API key: {api_key}")
             
             # Always sync files for new tenants

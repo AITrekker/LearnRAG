@@ -13,6 +13,7 @@ from app.models.schemas import (
 )
 from app.routers.auth import get_current_tenant
 from app.services.embedding_service import EmbeddingService
+from app.services.metrics_service import MetricsService
 
 router = APIRouter()
 
@@ -24,7 +25,32 @@ async def generate_embeddings(
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db)
 ):
-    """Generate embeddings for tenant files"""
+    """Generate embeddings for tenant files using current settings or request params"""
+    from app.models.database import TenantEmbeddingSettings
+    
+    # Get tenant settings if no specific params provided in request
+    settings_result = await db.execute(
+        select(TenantEmbeddingSettings).where(TenantEmbeddingSettings.tenant_id == tenant.id)
+    )
+    settings = settings_result.scalar_one_or_none()
+    
+    # Use request params or fall back to tenant settings
+    embedding_model = request.embedding_model
+    chunking_strategy = request.chunking_strategy
+    chunk_size = request.chunk_size
+    chunk_overlap = request.chunk_overlap
+    
+    if settings:
+        # Use tenant settings as defaults if request uses defaults
+        if request.embedding_model == "sentence-transformers/all-MiniLM-L6-v2":
+            embedding_model = settings.embedding_model
+        if request.chunking_strategy == "fixed_size":
+            chunking_strategy = settings.chunking_strategy
+        if request.chunk_size == 512:
+            chunk_size = settings.chunk_size
+        if request.chunk_overlap == 50:
+            chunk_overlap = settings.chunk_overlap
+    
     embedding_service = EmbeddingService()
     
     # Get files to process
@@ -48,15 +74,16 @@ async def generate_embeddings(
     # Start background task for embedding generation
     background_tasks.add_task(
         embedding_service.generate_embeddings_for_files,
-        files, request.embedding_model, request.chunking_strategy, db
+        files, embedding_model, chunking_strategy, db,
+        chunk_size, chunk_overlap, tenant.name
     )
     
     return GenerateEmbeddingsResponse(
         message=f"Started embedding generation for {len(files)} files",
         processed_files=len(files),
         total_chunks=0,  # Will be updated during processing
-        embedding_model=request.embedding_model,
-        chunking_strategy=request.chunking_strategy
+        embedding_model=embedding_model,
+        chunking_strategy=chunking_strategy
     )
 
 
@@ -70,6 +97,30 @@ async def get_available_models():
                 "description": "Lightweight, fast model (384 dimensions)",
                 "dimension": 384,
                 "default": True
+            },
+            {
+                "name": "sentence-transformers/all-mpnet-base-v2",
+                "description": "Higher quality, slower (768 dimensions)",
+                "dimension": 768,
+                "default": False
+            },
+            {
+                "name": "BAAI/bge-small-en-v1.5",
+                "description": "Recent, good performance (384 dimensions)",
+                "dimension": 384,
+                "default": False
+            },
+            {
+                "name": "sentence-transformers/multi-qa-MiniLM-L6-cos-v1",
+                "description": "Optimized for Q&A (384 dimensions)",
+                "dimension": 384,
+                "default": False
+            },
+            {
+                "name": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+                "description": "Multilingual support (384 dimensions)",
+                "dimension": 384,
+                "default": False
             }
         ]
     }
@@ -206,3 +257,51 @@ async def delete_embeddings(
     await db.commit()
     
     return {"message": f"Deleted embeddings for file {file.filename}"}
+
+
+@router.get("/metrics/current")
+async def get_current_metrics(
+    tenant: Tenant = Depends(get_current_tenant)
+):
+    """Get current embedding generation metrics if active"""
+    metrics_service = MetricsService()
+    
+    # Check if there's an active session
+    if hasattr(metrics_service, 'session_data') and metrics_service.session_data:
+        summary = metrics_service.get_session_summary()
+        return {
+            "active": True,
+            "progress": summary
+        }
+    else:
+        return {
+            "active": False,
+            "progress": None
+        }
+
+
+@router.get("/chunking-strategies")
+async def get_chunking_strategies():
+    """Get list of available chunking strategies"""
+    return {
+        "strategies": [
+            {
+                "name": "fixed_size",
+                "description": "Fixed-size chunks with word-based splitting and overlap",
+                "parameters": ["chunk_size", "chunk_overlap"],
+                "default": True
+            },
+            {
+                "name": "sentence",
+                "description": "Sentence-based chunks with natural boundaries",
+                "parameters": ["max_sentences"],
+                "default": False
+            },
+            {
+                "name": "recursive",
+                "description": "Recursive chunking: paragraphs → sentences → fixed size",
+                "parameters": ["chunk_size", "chunk_overlap"],
+                "default": False
+            }
+        ]
+    }

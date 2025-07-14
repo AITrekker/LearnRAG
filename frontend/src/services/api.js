@@ -19,6 +19,10 @@ class ApiService {
     this.search = this.search.bind(this);
     this.getRagTechniques = this.getRagTechniques.bind(this);
     this.getRagSessions = this.getRagSessions.bind(this);
+    this.getEmbeddingSettings = this.getEmbeddingSettings.bind(this);
+    this.updateEmbeddingSettings = this.updateEmbeddingSettings.bind(this);
+    this.getChunkingStrategies = this.getChunkingStrategies.bind(this);
+    this.getCurrentMetrics = this.getCurrentMetrics.bind(this);
   }
 
   initializeClient() {
@@ -129,6 +133,27 @@ class ApiService {
 
   async getRagSessions(limit = 10) {
     const response = await this.client.get(`/rag/sessions?limit=${limit}`);
+    return response.data;
+  }
+
+  // Embedding Settings
+  async getEmbeddingSettings() {
+    const response = await this.client.get('/tenants/embedding-settings');
+    return response.data;
+  }
+
+  async updateEmbeddingSettings(data) {
+    const response = await this.client.post('/tenants/embedding-settings', data);
+    return response.data;
+  }
+
+  async getChunkingStrategies() {
+    const response = await this.client.get('/embeddings/chunking-strategies');
+    return response.data;
+  }
+
+  async getCurrentMetrics() {
+    const response = await this.client.get('/embeddings/metrics/current');
     return response.data;
   }
 }

@@ -4,8 +4,8 @@ from sqlalchemy import select, func
 from typing import List
 
 from app.core.database import get_db
-from app.models.database import Tenant, File, Embedding
-from app.models.schemas import TenantInfo, File as FileSchema, GeneralEmbeddingStatus
+from app.models.database import Tenant, File, Embedding, TenantEmbeddingSettings
+from app.models.schemas import TenantInfo, File as FileSchema, GeneralEmbeddingStatus, TenantEmbeddingSettings as EmbeddingSettingsSchema, UpdateEmbeddingSettings
 from app.routers.auth import get_current_tenant
 from app.services.tenant_service import TenantService
 
@@ -174,3 +174,91 @@ async def get_embedding_summary(
         available_strategies=available_strategies,
         last_updated=last_updated
     )
+
+
+@router.get("/embedding-settings", response_model=EmbeddingSettingsSchema)
+async def get_embedding_settings(
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db)
+):
+    """Get current embedding settings for the tenant"""
+    # Get existing settings or create default
+    settings_result = await db.execute(
+        select(TenantEmbeddingSettings).where(TenantEmbeddingSettings.tenant_id == tenant.id)
+    )
+    settings = settings_result.scalar_one_or_none()
+    
+    if not settings:
+        # Create default settings if none exist
+        settings = TenantEmbeddingSettings(
+            tenant_id=tenant.id,
+            embedding_model="sentence-transformers/all-MiniLM-L6-v2",
+            chunking_strategy="fixed_size",
+            chunk_size=512,
+            chunk_overlap=50
+        )
+        db.add(settings)
+        await db.commit()
+        await db.refresh(settings)
+    
+    return settings
+
+
+@router.post("/embedding-settings", response_model=EmbeddingSettingsSchema)
+async def update_embedding_settings(
+    settings_update: UpdateEmbeddingSettings,
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db)
+):
+    """Update embedding settings for the tenant"""
+    from sqlalchemy import delete
+    
+    # Get existing settings or create new
+    settings_result = await db.execute(
+        select(TenantEmbeddingSettings).where(TenantEmbeddingSettings.tenant_id == tenant.id)
+    )
+    settings = settings_result.scalar_one_or_none()
+    
+    # Check if settings are actually changing
+    settings_changed = False
+    if settings:
+        settings_changed = (
+            settings.embedding_model != settings_update.embedding_model or
+            settings.chunking_strategy != settings_update.chunking_strategy or
+            settings.chunk_size != settings_update.chunk_size or
+            settings.chunk_overlap != settings_update.chunk_overlap
+        )
+    
+    # If settings changed, delete all existing embeddings for this tenant
+    if settings_changed:
+        print(f"🗑️  Settings changed for tenant {tenant.name}, deleting existing embeddings...")
+        await db.execute(
+            delete(Embedding).where(
+                Embedding.file_id.in_(
+                    select(File.id).where(File.tenant_id == tenant.id)
+                )
+            )
+        )
+        print(f"✅ Deleted existing embeddings for tenant {tenant.name}")
+    
+    if settings:
+        # Update existing settings
+        settings.embedding_model = settings_update.embedding_model
+        settings.chunking_strategy = settings_update.chunking_strategy
+        settings.chunk_size = settings_update.chunk_size
+        settings.chunk_overlap = settings_update.chunk_overlap
+    else:
+        # Create new settings
+        settings = TenantEmbeddingSettings(
+            tenant_id=tenant.id,
+            embedding_model=settings_update.embedding_model,
+            chunking_strategy=settings_update.chunking_strategy,
+            chunk_size=settings_update.chunk_size,
+            chunk_overlap=settings_update.chunk_overlap
+        )
+        db.add(settings)
+    
+    await db.commit()
+    await db.refresh(settings)
+    
+    return settings
