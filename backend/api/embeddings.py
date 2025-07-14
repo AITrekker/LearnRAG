@@ -3,17 +3,17 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete, func
 from typing import List
 
-from app.core.database import get_db
-from app.models.database import Tenant, File, Embedding
-from app.models.schemas import (
+from database import get_db
+from models import Tenant, File, Embedding
+from models import (
     GenerateEmbeddingsRequest, 
     GenerateEmbeddingsResponse,
     EmbeddingStatus,
     GeneralEmbeddingStatus
 )
-from app.routers.auth import get_current_tenant
-from app.services.embedding_service import EmbeddingService
-from app.services.metrics_service import MetricsService
+from api.auth import get_current_tenant
+from services.embedding_service import EmbeddingService
+from services.metrics_service import MetricsService
 
 router = APIRouter()
 
@@ -26,7 +26,7 @@ async def generate_embeddings(
     db: AsyncSession = Depends(get_db)
 ):
     """Generate embeddings for tenant files using current settings or request params"""
-    from app.models.database import TenantEmbeddingSettings
+    from models import TenantEmbeddingSettings
     
     # Get tenant settings if no specific params provided in request
     settings_result = await db.execute(
@@ -53,19 +53,10 @@ async def generate_embeddings(
     
     embedding_service = EmbeddingService()
     
-    # Get files to process
-    if request.file_ids:
-        result = await db.execute(
-            select(File).where(
-                File.tenant_id == tenant.id,
-                File.id.in_(request.file_ids)
-            )
-        )
-    else:
-        result = await db.execute(
-            select(File).where(File.tenant_id == tenant.id)
-        )
-    
+    # Get all files for the tenant
+    result = await db.execute(
+        select(File).where(File.tenant_id == tenant.id)
+    )
     files = result.scalars().all()
     
     if not files:
@@ -80,10 +71,8 @@ async def generate_embeddings(
     
     return GenerateEmbeddingsResponse(
         message=f"Started embedding generation for {len(files)} files",
-        processed_files=len(files),
-        total_chunks=0,  # Will be updated during processing
-        embedding_model=embedding_model,
-        chunking_strategy=chunking_strategy
+        files_processed=len(files),
+        total_chunks=0  # Will be updated during processing
     )
 
 

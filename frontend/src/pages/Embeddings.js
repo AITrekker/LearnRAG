@@ -6,6 +6,7 @@ import {
   Save, RotateCcw, AlertCircle, TrendingUp, Clock
 } from 'lucide-react';
 import apiService from '../services/api';
+import { formatFileSize } from '../utils';
 
 const Embeddings = ({ apiKey }) => {
   const queryClient = useQueryClient();
@@ -422,9 +423,9 @@ const Embeddings = ({ apiKey }) => {
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="font-medium text-gray-900">{file.filename}</p>
+                  <p className="font-medium text-gray-900">{file.name}</p>
                   <p className="text-sm text-gray-500">
-                    {(file.file_size / 1024).toFixed(1)} KB • {file.content_type}
+                    {formatFileSize(file.size)} • {file.type}
                   </p>
                 </div>
                 {selectedFiles.includes(file.id) && (

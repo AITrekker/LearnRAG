@@ -48,7 +48,7 @@ def run_tests():
     """Import and run the API tests"""
     try:
         # Add test directory to Python path
-        test_dir = os.path.join(os.path.dirname(__file__), 'test')
+        test_dir = os.path.join(os.path.dirname(__file__), '..', 'tests')
         sys.path.insert(0, test_dir)
         
         # Import and run tests

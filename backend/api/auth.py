@@ -2,17 +2,20 @@ from fastapi import APIRouter, Depends, HTTPException, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from app.core.database import get_db
-from app.models.database import Tenant
+from database import get_db
+from models import Tenant
 
 router = APIRouter()
 
 
 async def get_current_tenant(
-    x_api_key: str = Header(..., alias="X-API-Key"),
+    x_api_key: str = Header(None, alias="X-API-Key"),
     db: AsyncSession = Depends(get_db)
 ) -> Tenant:
     """Dependency to get current tenant from API key"""
+    if not x_api_key:
+        raise HTTPException(status_code=401, detail="API key required")
+        
     result = await db.execute(select(Tenant).where(Tenant.api_key == x_api_key))
     tenant = result.scalar_one_or_none()
     

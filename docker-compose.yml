@@ -28,9 +28,9 @@ services:
     volumes:
       - ./demo_data:/app/demo_data:ro
       - ./data/files:/app/internal_files
-      - models_cache:/app/models_cache
-      - huggingface_cache:/root/.cache/huggingface
-      - transformers_cache:/root/.cache/transformers
+      - ./cache/models:/app/models_cache
+      - ./cache/huggingface:/root/.cache/huggingface
+      - ./cache/transformers:/root/.cache/transformers
       - .:/app/output:rw
     depends_on:
       postgres:

@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { motion } from 'framer-motion';
 import { Files, Database, Cpu, RefreshCw } from 'lucide-react';
 import apiService from '../services/api';
+import { formatFileSize } from '../utils';
 
 const Dashboard = ({ apiKey }) => {
   const queryClient = useQueryClient();
@@ -149,9 +150,9 @@ const Dashboard = ({ apiKey }) => {
                 className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
               >
                 <div>
-                  <p className="font-medium text-gray-900">{file.filename}</p>
+                  <p className="font-medium text-gray-900">{file.name}</p>
                   <p className="text-sm text-gray-500">
-                    {(file.file_size / 1024).toFixed(1)} KB • {file.content_type}
+                    {formatFileSize(file.size)} • {file.type}
                   </p>
                 </div>
                 <div className="text-sm text-gray-400">

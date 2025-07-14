@@ -1,7 +1,7 @@
 import os
-import hashlib
 import shutil
 import json
+import hashlib
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Any
@@ -10,73 +10,60 @@ import secrets
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 
-from app.core.database import AsyncSessionLocal
-from app.models.database import Tenant, File, TenantEmbeddingSettings
+from database import AsyncSessionLocal
+from models import Tenant, File, TenantEmbeddingSettings
+from utils import PathConfig, DatabaseUtils, FileUtils
 
 
 class TenantService:
     def __init__(self):
-        self.demo_data_dir = Path("/app/demo_data")
-        self.internal_files_dir = Path("/app/internal_files")
+        self.demo_data_dir = PathConfig.DEMO_DATA
+        self.internal_files_dir = PathConfig.INTERNAL_FILES
         self.internal_files_dir.mkdir(exist_ok=True)
 
     async def auto_discover_tenants(self):
         """Auto-discover tenants from demo_data directory - only if database is empty"""
         async with AsyncSessionLocal() as db:
             # Check if database already has tenants
-            tenant_count_result = await db.execute(select(func.count(Tenant.id)))
-            tenant_count = tenant_count_result.scalar()
+            tenant_count = await self._get_tenant_count(db)
             
             if tenant_count > 0:
                 print(f"Database already has {tenant_count} tenants. Skipping auto-discovery.")
-                # Still write existing API keys to file for frontend
-                await self._write_existing_api_keys_to_file(db)
+                await self._write_api_keys_to_file(db)
                 return
 
             print("Database is empty. Starting tenant auto-discovery...")
-            
-            if not self.demo_data_dir.exists():
-                print(f"Demo data directory {self.demo_data_dir} does not exist")
-                return
+            await self._discover_and_create_tenants(db)
 
-            api_keys_data = {"tenants": []}
-            
-            tenant_folders = [
-                folder for folder in self.demo_data_dir.iterdir()
-                if folder.is_dir() and not folder.name.startswith('.')
-            ]
+    async def _get_tenant_count(self, db: AsyncSession) -> int:
+        """Get count of existing tenants"""
+        result = await db.execute(select(func.count(Tenant.id)))
+        return result.scalar() or 0
 
-            if not tenant_folders:
-                print("No tenant folders found in demo_data directory")
-                return
+    async def _discover_and_create_tenants(self, db: AsyncSession):
+        """Discover tenant folders and create tenants"""
+        if not self.demo_data_dir.exists():
+            print(f"Demo data directory {self.demo_data_dir} does not exist")
+            return
 
-            for folder in tenant_folders:
-                tenant = await self._create_or_update_tenant(folder.name, db, force_sync=True)
-                if tenant:
-                    api_keys_data["tenants"].append({
-                        "slug": tenant.slug,
-                        "name": tenant.name,
-                        "api_key": tenant.api_key
-                    })
+        tenant_folders = [
+            folder for folder in self.demo_data_dir.iterdir()
+            if folder.is_dir() and not folder.name.startswith('.')
+        ]
 
-            await db.commit()
-            
-            # Write API keys to JSON file accessible by frontend
-            # Write to project root (for backend access)
-            api_keys_file = Path("/app/output") / "api_keys.json"
-            with open(api_keys_file, "w") as f:
-                json.dump(api_keys_data, f, indent=2)
-            
-            # Write to frontend public directory (for frontend access)
-            frontend_api_keys_file = Path("/app/output/frontend/public") / "api_keys.json"
-            frontend_api_keys_file.parent.mkdir(parents=True, exist_ok=True)
-            with open(frontend_api_keys_file, "w") as f:
-                json.dump(api_keys_data, f, indent=2)
-            
-            print(f"Auto-discovery complete. API keys written to {api_keys_file} and {frontend_api_keys_file}")
+        if not tenant_folders:
+            print("No tenant folders found in demo_data directory")
+            return
 
-    async def _write_existing_api_keys_to_file(self, db: AsyncSession):
-        """Write existing tenant API keys to JSON file"""
+        for folder in tenant_folders:
+            await self._create_or_update_tenant(folder.name, db, force_sync=True)
+
+        await db.commit()
+        await self._write_api_keys_to_file(db)
+        print("Auto-discovery complete.")
+
+    async def _write_api_keys_to_file(self, db: AsyncSession):
+        """Write tenant API keys to JSON files"""
         result = await db.execute(select(Tenant))
         tenants = result.scalars().all()
         
@@ -91,18 +78,15 @@ class TenantService:
             ]
         }
         
-        # Write to project root (for backend access)
-        api_keys_file = Path("/app/output") / "api_keys.json"
-        with open(api_keys_file, "w") as f:
-            json.dump(api_keys_data, f, indent=2)
+        # Write to both locations for backend and frontend access
+        for path in [
+            PathConfig.OUTPUT / "api_keys.json",
+            PathConfig.OUTPUT / "frontend/public/api_keys.json"
+        ]:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with open(path, "w") as f:
+                json.dump(api_keys_data, f, indent=2)
         
-        # Write to frontend public directory (for frontend access)
-        frontend_api_keys_file = Path("/app/output/frontend/public") / "api_keys.json"
-        frontend_api_keys_file.parent.mkdir(parents=True, exist_ok=True)
-        with open(frontend_api_keys_file, "w") as f:
-            json.dump(api_keys_data, f, indent=2)
-        
-        print(f"Existing API keys written to {api_keys_file} and {frontend_api_keys_file}")
 
     async def _create_or_update_tenant(self, slug: str, db: AsyncSession, force_sync: bool = False):
         """Create or update a tenant"""

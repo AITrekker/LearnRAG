@@ -18,7 +18,7 @@ class Base(DeclarativeBase):
 
 async def init_db():
     # Import all models to ensure they're registered
-    from app.models import database
+    import models
     
     async with engine.begin() as conn:
         # Create all tables

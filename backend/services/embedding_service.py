@@ -4,7 +4,6 @@ import time
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 import pickle
-import hashlib
 
 import torch
 from sentence_transformers import SentenceTransformer
@@ -12,14 +11,15 @@ import numpy as np
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
 
-from app.models.database import File, Embedding
-from app.services.file_processor import FileProcessor
-from app.services.metrics_service import MetricsService
+from models import File, Embedding
+from services.file_processor import FileProcessor
+from services.metrics_service import MetricsService
+from utils import PathConfig, DatabaseUtils
 
 
 class EmbeddingService:
     def __init__(self):
-        self.models_cache_dir = Path(os.getenv("MODELS_CACHE_DIR", "/app/models_cache"))
+        self.models_cache_dir = PathConfig.MODELS_CACHE
         self.models_cache_dir.mkdir(exist_ok=True)
         self.file_processor = FileProcessor()
         self._loaded_models = {}  # In-memory cache
@@ -97,7 +97,7 @@ class EmbeddingService:
         
         # Extract text from file
         # Get tenant info
-        from app.models.database import Tenant
+        from models import Tenant
         tenant_result = await db.execute(select(Tenant).where(Tenant.id == file.tenant_id))
         tenant = tenant_result.scalar_one()
         

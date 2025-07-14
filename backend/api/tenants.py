@@ -3,11 +3,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from typing import List
 
-from app.core.database import get_db
-from app.models.database import Tenant, File, Embedding, TenantEmbeddingSettings
-from app.models.schemas import TenantInfo, File as FileSchema, GeneralEmbeddingStatus, TenantEmbeddingSettings as EmbeddingSettingsSchema, UpdateEmbeddingSettings
-from app.routers.auth import get_current_tenant
-from app.services.tenant_service import TenantService
+from database import get_db
+from models import Tenant, File, Embedding, TenantEmbeddingSettings
+from models import TenantInfo, FileInfo, GeneralEmbeddingStatus, TenantEmbeddingSettingsSchema as EmbeddingSettingsSchema, UpdateEmbeddingSettings
+from api.auth import get_current_tenant
+from services.tenant_service import TenantService
 
 router = APIRouter()
 
@@ -59,7 +59,7 @@ async def sync_files(
     return result
 
 
-@router.get("/files", response_model=List[FileSchema])
+@router.get("/files", response_model=List[FileInfo])
 async def get_tenant_files(
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db)
@@ -69,7 +69,18 @@ async def get_tenant_files(
         select(File).where(File.tenant_id == tenant.id).order_by(File.filename)
     )
     files = result.scalars().all()
-    return files
+    return [
+        FileInfo(
+            id=file.id,
+            name=file.filename,
+            path=file.file_path,
+            size=file.file_size,
+            type=file.content_type,
+            created_at=file.created_at,
+            updated_at=file.last_modified
+        )
+        for file in files
+    ]
 
 
 @router.get("/stats")

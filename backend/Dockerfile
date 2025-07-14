@@ -33,8 +33,8 @@ RUN python -c "import torch; print(f'PyTorch version: {torch.__version__}'); \
     import transformers; print(f'Transformers version: {transformers.__version__}'); \
     print('Core ML libraries imported successfully!')"
 
-# Copy the application source code
-COPY app/ ./app/
+# Copy the application source code  
+COPY . .
 
 # Create necessary directories with proper permissions
 RUN mkdir -p /app/logs /app/data /app/cache \
@@ -53,4 +53,4 @@ ENV MODELS_CACHE_DIR=/app/models_cache
 EXPOSE 8000
 
 # Start the application
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--access-log", "--log-level", "info"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--access-log", "--log-level", "info"]

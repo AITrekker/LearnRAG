@@ -3,9 +3,9 @@ import numpy as np
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, text
 
-from app.models.database import Embedding, File
-from app.models.responses import SearchResult
-from app.services.embedding_service import EmbeddingService
+from models import Embedding, File
+from models import SearchResult
+from services.embedding_service import EmbeddingService
 
 
 class RagService:

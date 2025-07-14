@@ -4,9 +4,9 @@ from contextlib import asynccontextmanager
 import logging
 import time
 
-from app.core.database import init_db
-from app.routers import auth, tenants, embeddings, rag
-from app.services.tenant_service import TenantService
+from database import init_db
+from api import auth, tenants, embeddings, rag
+from services.tenant_service import TenantService
 
 
 @asynccontextmanager

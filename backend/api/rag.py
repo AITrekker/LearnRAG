@@ -3,13 +3,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, text
 from typing import List
 
-from app.core.database import get_db
-from app.models.database import Tenant, File, Embedding, RagSession
-from app.models.requests import SearchRequest, AnswerRequest, CompareRequest
-from app.models.responses import SearchResponse, AnswerResponse, SearchResult
-from app.routers.auth import get_current_tenant
-from app.services.rag_service import RagService
-from app.services.llm_service import llm_service
+from database import get_db
+from models import Tenant, File, Embedding, RagSession
+from models import SearchRequest, AnswerRequest, CompareRequest
+from models import SearchResponse, AnswerResponse, SearchResult
+from api.auth import get_current_tenant
+from services.rag_service import RagService
+from services.llm_service import llm_service
 
 router = APIRouter()
 

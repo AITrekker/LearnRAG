@@ -9,7 +9,7 @@ from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 import torch
 from threading import Lock
 
-from app.models.responses import SearchResult
+from models import SearchResult
 
 logger = logging.getLogger(__name__)
 
