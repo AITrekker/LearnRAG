@@ -30,10 +30,19 @@ CREATE TABLE embeddings (
     chunk_text TEXT NOT NULL,
     embedding_model VARCHAR(100) NOT NULL,
     chunking_strategy VARCHAR(50) NOT NULL,
-    embedding VECTOR(384), -- all-MiniLM-L6-v2 dimension
+    embedding VECTOR, -- Dynamic dimensions based on model
     chunk_metadata JSONB DEFAULT '{}',
     created_at TIMESTAMP DEFAULT NOW(),
     UNIQUE(file_id, chunk_index, embedding_model, chunking_strategy)
+);
+
+CREATE TABLE tenant_embedding_settings (
+    tenant_id INTEGER PRIMARY KEY REFERENCES tenants(id) ON DELETE CASCADE,
+    embedding_model VARCHAR(100) NOT NULL DEFAULT 'sentence-transformers/all-MiniLM-L6-v2',
+    chunking_strategy VARCHAR(50) NOT NULL DEFAULT 'fixed_size',
+    chunk_size INTEGER DEFAULT 512,
+    chunk_overlap INTEGER NOT NULL DEFAULT 50,
+    updated_at TIMESTAMP DEFAULT NOW()
 );
 
 CREATE TABLE rag_sessions (
@@ -44,6 +53,10 @@ CREATE TABLE rag_sessions (
     rag_technique VARCHAR(50) NOT NULL,
     query TEXT NOT NULL,
     results JSONB NOT NULL,
+    answer TEXT,
+    confidence VARCHAR,
+    answer_model VARCHAR(100),
+    generation_time VARCHAR(10),
     created_at TIMESTAMP DEFAULT NOW()
 );
 

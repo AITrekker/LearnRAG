@@ -62,10 +62,18 @@ class TenantService:
             await db.commit()
             
             # Write API keys to JSON file accessible by frontend
+            # Write to project root (for backend access)
             api_keys_file = Path("/app/output") / "api_keys.json"
             with open(api_keys_file, "w") as f:
                 json.dump(api_keys_data, f, indent=2)
-            print(f"Auto-discovery complete. API keys written to {api_keys_file}")
+            
+            # Write to frontend public directory (for frontend access)
+            frontend_api_keys_file = Path("/app/output/frontend/public") / "api_keys.json"
+            frontend_api_keys_file.parent.mkdir(parents=True, exist_ok=True)
+            with open(frontend_api_keys_file, "w") as f:
+                json.dump(api_keys_data, f, indent=2)
+            
+            print(f"Auto-discovery complete. API keys written to {api_keys_file} and {frontend_api_keys_file}")
 
     async def _write_existing_api_keys_to_file(self, db: AsyncSession):
         """Write existing tenant API keys to JSON file"""
@@ -83,10 +91,18 @@ class TenantService:
             ]
         }
         
+        # Write to project root (for backend access)
         api_keys_file = Path("/app/output") / "api_keys.json"
         with open(api_keys_file, "w") as f:
             json.dump(api_keys_data, f, indent=2)
-        print(f"Existing API keys written to {api_keys_file}")
+        
+        # Write to frontend public directory (for frontend access)
+        frontend_api_keys_file = Path("/app/output/frontend/public") / "api_keys.json"
+        frontend_api_keys_file.parent.mkdir(parents=True, exist_ok=True)
+        with open(frontend_api_keys_file, "w") as f:
+            json.dump(api_keys_data, f, indent=2)
+        
+        print(f"Existing API keys written to {api_keys_file} and {frontend_api_keys_file}")
 
     async def _create_or_update_tenant(self, slug: str, db: AsyncSession, force_sync: bool = False):
         """Create or update a tenant"""

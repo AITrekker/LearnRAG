@@ -17,6 +17,7 @@ class ApiService {
     this.getEmbeddingStatus = this.getEmbeddingStatus.bind(this);
     this.deleteEmbeddings = this.deleteEmbeddings.bind(this);
     this.search = this.search.bind(this);
+    this.generateAnswer = this.generateAnswer.bind(this);
     this.getRagTechniques = this.getRagTechniques.bind(this);
     this.getRagSessions = this.getRagSessions.bind(this);
     this.getEmbeddingSettings = this.getEmbeddingSettings.bind(this);
@@ -123,6 +124,11 @@ class ApiService {
   // RAG
   async search(data) {
     const response = await this.client.post('/rag/search', data);
+    return response.data;
+  }
+
+  async generateAnswer(data) {
+    const response = await this.client.post('/rag/answer', data);
     return response.data;
   }
 

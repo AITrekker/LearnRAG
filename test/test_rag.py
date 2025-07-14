@@ -81,8 +81,8 @@ class RagTests:
         # Test with minimal valid payload
         minimal_payload = {
             "query": "test query",
-            "embedding_model": "all-MiniLM-L6-v2",
-            "rag_technique": "basic_similarity",
+            "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
+            "rag_technique": "similarity_search",
             "top_k": 5
         }
         response = self.session.post(f"{self.base_url}/api/rag/search", json=minimal_payload)
@@ -91,17 +91,46 @@ class RagTests:
             "test_name": "search_with_minimal_data",
             "status_code": response.status_code,
             "success": response.status_code in [200, 400],  # 400 OK if no embeddings exist
-            "endpoint": "/api/rag/search"
+            "endpoint": "/api/rag/search",
+            "method": "POST"
         }
         
         if response.status_code == 200:
             data = response.json()
             result["data"] = data
-            result["has_results"] = "results" in data
-            result["has_session_id"] = "session_id" in data
+            # Validate response structure
+            expected_fields = ["query", "results", "embedding_model", "rag_technique", "total_results"]
+            result["has_required_fields"] = all(field in data for field in expected_fields)
+            result["result_count"] = data.get("total_results", 0)
+            result["success"] = result["success"] and result["has_required_fields"]
         elif response.status_code == 400:
             # Likely no embeddings available for search
             result["likely_no_embeddings"] = True
+        
+        return result
+    
+    def test_get_compare_placeholder(self) -> Dict[str, Any]:
+        """Test RAG comparison endpoint (placeholder implementation)"""
+        compare_payload = {
+            "queries": ["test query 1", "test query 2"],
+            "techniques": ["similarity_search"]
+        }
+        response = self.session.post(f"{self.base_url}/api/rag/compare", json=compare_payload)
+        
+        result = {
+            "test_name": "get_compare_placeholder",
+            "status_code": response.status_code,
+            "success": response.status_code == 200,
+            "endpoint": "/api/rag/compare",
+            "method": "POST",
+            "is_placeholder": True
+        }
+        
+        if response.status_code == 200:
+            data = response.json()
+            result["data"] = data
+            # Should return placeholder message
+            result["is_placeholder_response"] = "coming in Phase 3" in str(data).lower()
         
         return result
 
@@ -111,7 +140,8 @@ class RagTests:
             self.test_get_rag_techniques,
             self.test_get_rag_sessions,
             self.test_search_validation,
-            self.test_search_with_minimal_data
+            self.test_search_with_minimal_data,
+            self.test_get_compare_placeholder
         ]
         
         results = []
@@ -127,8 +157,12 @@ class RagTests:
                     extra_info = f" ({result['technique_count']} techniques)"
                 elif "session_count" in result:
                     extra_info = f" ({result['session_count']} sessions)"
+                elif "result_count" in result:
+                    extra_info = f" ({result['result_count']} results)"
                 elif result.get("likely_no_embeddings"):
                     extra_info = " (no embeddings available)"
+                elif result.get("is_placeholder"):
+                    extra_info = " (placeholder)"
                 
                 print(f"  {status} {result['test_name']}: {result['status_code']}{extra_info}")
             except Exception as e:

@@ -244,17 +244,13 @@ logs/
 
 # Vector databases and indexes
 *.index
-*.faiss
-chromadb/
-vectordb/
 
 # HuggingFace cache
 .cache/
 transformers/
 datasets/
 
-# Project instructions
+# Project instructions and docs
 .claude/
+docs/
 CLAUDE.md
-PRD.md
-pytorch-setup.md

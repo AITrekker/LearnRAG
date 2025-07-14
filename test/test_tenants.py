@@ -79,17 +79,111 @@ class TenantTests:
         
         return result
     
-    def test_sync_files_get_status(self) -> Dict[str, Any]:
-        """Test getting file sync status (should be GET, not POST for status)"""
-        # This tests if the sync endpoint exists and handles GET properly
-        response = self.session.get(f"{self.base_url}/api/tenants/sync-files")
+    def test_get_embedding_summary(self) -> Dict[str, Any]:
+        """Test getting embedding summary"""
+        response = self.session.get(f"{self.base_url}/api/tenants/embedding-summary")
         
         result = {
-            "test_name": "sync_files_get_status",
+            "test_name": "get_embedding_summary",
             "status_code": response.status_code,
-            "success": response.status_code in [200, 405],  # 405 = Method Not Allowed is OK
-            "endpoint": "/api/tenants/sync-files"
+            "success": response.status_code == 200,
+            "endpoint": "/api/tenants/embedding-summary"
         }
+        
+        if response.status_code == 200:
+            data = response.json()
+            result["data"] = data
+            # Validate summary structure
+            required_fields = ["total_files", "files_with_embeddings", "files_without_embeddings", "total_chunks"]
+            result["has_required_fields"] = all(field in data for field in required_fields)
+            result["success"] = result["success"] and result["has_required_fields"]
+        
+        return result
+    
+    def test_get_embedding_settings(self) -> Dict[str, Any]:
+        """Test getting tenant embedding settings"""
+        response = self.session.get(f"{self.base_url}/api/tenants/embedding-settings")
+        
+        result = {
+            "test_name": "get_embedding_settings",
+            "status_code": response.status_code,
+            "success": response.status_code == 200,
+            "endpoint": "/api/tenants/embedding-settings"
+        }
+        
+        if response.status_code == 200:
+            data = response.json()
+            result["data"] = data
+            # Validate settings structure
+            required_fields = ["embedding_model", "chunking_strategy", "chunk_overlap"]
+            result["has_required_fields"] = all(field in data for field in required_fields)
+            result["success"] = result["success"] and result["has_required_fields"]
+        
+        return result
+    
+    def test_update_embedding_settings(self) -> Dict[str, Any]:
+        """Test updating tenant embedding settings"""
+        # First get current settings
+        get_response = self.session.get(f"{self.base_url}/api/tenants/embedding-settings")
+        if get_response.status_code != 200:
+            return {
+                "test_name": "update_embedding_settings",
+                "success": False,
+                "error": "Could not get current settings"
+            }
+        
+        current_settings = get_response.json()
+        
+        # Update settings (change chunk_overlap slightly)
+        new_settings = {
+            "embedding_model": current_settings["embedding_model"],
+            "chunking_strategy": current_settings["chunking_strategy"], 
+            "chunk_size": current_settings.get("chunk_size", 512),
+            "chunk_overlap": 25  # Change from default to test update
+        }
+        
+        response = self.session.post(f"{self.base_url}/api/tenants/embedding-settings", json=new_settings)
+        
+        result = {
+            "test_name": "update_embedding_settings",
+            "status_code": response.status_code,
+            "success": response.status_code == 200,
+            "endpoint": "/api/tenants/embedding-settings",
+            "method": "POST"
+        }
+        
+        if response.status_code == 200:
+            data = response.json()
+            result["data"] = data
+            # Verify the change was applied
+            result["settings_updated"] = data.get("chunk_overlap") == 25
+            result["success"] = result["success"] and result["settings_updated"]
+            
+            # Restore original settings
+            restore_response = self.session.post(f"{self.base_url}/api/tenants/embedding-settings", json=current_settings)
+            result["settings_restored"] = restore_response.status_code == 200
+        
+        return result
+    
+    def test_sync_files(self) -> Dict[str, Any]:
+        """Test file synchronization"""
+        response = self.session.post(f"{self.base_url}/api/tenants/sync-files")
+        
+        result = {
+            "test_name": "sync_files",
+            "status_code": response.status_code,
+            "success": response.status_code == 200,
+            "endpoint": "/api/tenants/sync-files",
+            "method": "POST"
+        }
+        
+        if response.status_code == 200:
+            data = response.json()
+            result["data"] = data
+            # Validate sync response structure
+            expected_fields = ["tenant", "processed_files"]
+            result["has_sync_info"] = all(field in data for field in expected_fields)
+            result["success"] = result["success"] and result["has_sync_info"]
         
         return result
 
@@ -99,7 +193,10 @@ class TenantTests:
             self.test_get_tenant_info,
             self.test_get_tenant_files,
             self.test_get_tenant_stats,
-            self.test_sync_files_get_status
+            self.test_get_embedding_summary,
+            self.test_get_embedding_settings,
+            self.test_update_embedding_settings,
+            self.test_sync_files
         ]
         
         results = []

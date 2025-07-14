@@ -5,9 +5,11 @@ from typing import List
 
 from app.core.database import get_db
 from app.models.database import Tenant, File, Embedding, RagSession
-from app.models.schemas import SearchRequest, SearchResponse, SearchResult
+from app.models.requests import SearchRequest, AnswerRequest, CompareRequest
+from app.models.responses import SearchResponse, AnswerResponse, SearchResult
 from app.routers.auth import get_current_tenant
 from app.services.rag_service import RagService
+from app.services.llm_service import llm_service
 
 router = APIRouter()
 
@@ -72,10 +74,75 @@ async def get_rag_techniques():
     }
 
 
+@router.post("/answer", response_model=AnswerResponse)
+async def generate_answer(
+    request: AnswerRequest,
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db)
+):
+    """Generate an answer from retrieved chunks using LLM"""
+    rag_service = RagService()
+    
+    # Step 1: Generate query embedding and retrieve chunks
+    query_embedding = await rag_service.generate_query_embedding(
+        request.query, request.embedding_model
+    )
+    
+    # Retrieve more chunks for better context
+    search_results = await rag_service.similarity_search(
+        query_embedding,
+        tenant.id,
+        request.embedding_model,
+        request.chunking_strategy,
+        request.top_k,
+        db
+    )
+    
+    # Filter by minimum similarity threshold
+    filtered_results = [
+        result for result in search_results 
+        if result.similarity >= request.min_similarity
+    ]
+    
+    # Step 2: Generate answer using LLM
+    answer_data = await llm_service.generate_answer(
+        query=request.query,
+        chunks=filtered_results,
+        model_name=request.answer_model,
+        max_length=request.max_length
+    )
+    
+    # Step 3: Save answer session
+    session = RagSession(
+        tenant_id=tenant.id,
+        embedding_model=request.embedding_model,
+        chunking_strategy=request.chunking_strategy,
+        rag_technique="answer_generation",
+        query=request.query,
+        results=[result.dict() for result in filtered_results],
+        answer=answer_data["answer"],
+        confidence=str(answer_data["confidence"]),
+        answer_model=answer_data["model_used"],
+        generation_time=str(answer_data["generation_time"])
+    )
+    db.add(session)
+    await db.commit()
+    
+    return AnswerResponse(
+        query=request.query,
+        answer=answer_data["answer"],
+        confidence=float(answer_data["confidence"]),  # Convert back to float for API response
+        sources=filtered_results,
+        generation_time=float(answer_data["generation_time"]),  # Convert back to float for API response
+        model_used=answer_data["model_used"],
+        fallback_used=answer_data["error"] is not None,
+        error=answer_data["error"]
+    )
+
+
 @router.post("/compare")
 async def compare_techniques(
-    queries: List[str],
-    techniques: List[str],
+    request: CompareRequest,
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db)
 ):

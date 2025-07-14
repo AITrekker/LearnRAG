@@ -9,6 +9,9 @@ RUN npm install
 # Copy source code
 COPY . .
 
+# Make startup script executable
+RUN chmod +x startup.sh
+
 EXPOSE 3000
 
-CMD ["npm", "start"]
+CMD ["./startup.sh"]

@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, text
 
 from app.models.database import Embedding, File
-from app.models.schemas import SearchResult
+from app.models.responses import SearchResult
 from app.services.embedding_service import EmbeddingService
 
 
@@ -38,6 +38,7 @@ class RagService:
                 e.chunk_metadata,
                 f.id as file_id,
                 f.filename,
+                f.file_path,
                 1 - (e.embedding <=> :query_vector) as similarity_score
             FROM embeddings e
             JOIN files f ON e.file_id = f.id
@@ -63,9 +64,9 @@ class RagService:
         for row in result:
             search_result = SearchResult(
                 chunk_text=row.chunk_text,
-                similarity_score=float(row.similarity_score),
-                file_id=row.file_id,
-                filename=row.filename,
+                similarity=float(row.similarity_score),
+                file_name=row.filename,
+                file_path=row.file_path,
                 chunk_index=row.chunk_index,
                 chunk_metadata=row.chunk_metadata or {}
             )
