@@ -30,23 +30,35 @@ export const useEmbeddingGeneration = (apiKey) => {
   // Generation state
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [pollCount, setPollCount] = useState(0);
   
   // Error handling
   const { error, handleError, clearError } = useErrorHandler();
   const queryClient = useQueryClient();
 
-  // Real-time metrics polling (only when generation is active)
+  // Optimized metrics polling with smart intervals
   const { data: metrics } = useQuery(
     'currentMetrics',
     apiService.getCurrentMetrics,
     {
       enabled: !!apiKey && isGenerating,
-      refetchInterval: isGenerating ? 2000 : false, // Poll every 2 seconds when active
-      refetchIntervalInBackground: true,
+      // Smart polling: faster at start, slower for long operations
+      refetchInterval: isGenerating ? (
+        pollCount < 30 ? 1000 :   // First 30 polls: every 1 second
+        pollCount < 90 ? 2000 :   // Next 60 polls: every 2 seconds  
+        3000                      // After 90 polls: every 3 seconds
+      ) : false,
+      refetchIntervalInBackground: false, // Save battery/CPU when tab not active
       onSuccess: (data) => {
+        // Increment poll count for smart interval adjustment
+        if (isGenerating) {
+          setPollCount(prev => prev + 1);
+        }
+        
         // Auto-stop polling when generation completes
         if (data && !data.active && isGenerating) {
           setIsGenerating(false);
+          setPollCount(0); // Reset poll count
           // Refresh file list to show new embeddings
           queryClient.invalidateQueries('tenantFiles');
         }
@@ -111,6 +123,7 @@ export const useEmbeddingGeneration = (apiKey) => {
     {
       onSuccess: () => {
         setIsGenerating(true); // Start polling for progress
+        setPollCount(0); // Reset poll count for new generation
         clearError();
         setSelectedFiles([]); // Clear selection
       },

@@ -3,7 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete, func
 from typing import List
 
-from database import get_db
+from database import get_db, AsyncSessionLocal
 from models import Tenant, File, Embedding
 from models import (
     GenerateEmbeddingsRequest, 
@@ -16,6 +16,40 @@ from services.embedding_service import EmbeddingService
 from services.metrics_service import MetricsService
 
 router = APIRouter()
+
+
+async def _generate_embeddings_background(
+    files: List[File],
+    embedding_model: str,
+    chunking_strategy: str,
+    chunk_size: int,
+    chunk_overlap: int,
+    tenant_name: str
+):
+    """
+    Background task for embedding generation with proper database session management.
+    
+    Teaching Purpose: Demonstrates proper async database session handling in background tasks.
+    - Create new session within background task scope
+    - Ensure session is properly closed after completion
+    - Avoid session sharing between request and background task
+    """
+    embedding_service = EmbeddingService()
+    
+    # Create a new database session for the background task
+    async with AsyncSessionLocal() as db:
+        try:
+            await embedding_service.generate_embeddings_for_files(
+                files, embedding_model, chunking_strategy, db,
+                chunk_size, chunk_overlap, tenant_name
+            )
+            await db.commit()
+        except Exception as e:
+            await db.rollback()
+            print(f"Error in background embedding generation: {e}")
+            raise
+        finally:
+            await db.close()
 
 
 @router.post("/generate", response_model=GenerateEmbeddingsResponse)
@@ -63,9 +97,10 @@ async def generate_embeddings(
         raise HTTPException(status_code=404, detail="No files found")
     
     # Start background task for embedding generation
+    # Note: Create new DB session in background task to avoid connection issues
     background_tasks.add_task(
-        embedding_service.generate_embeddings_for_files,
-        files, embedding_model, chunking_strategy, db,
+        _generate_embeddings_background,
+        files, embedding_model, chunking_strategy,
         chunk_size, chunk_overlap, tenant.name
     )
     

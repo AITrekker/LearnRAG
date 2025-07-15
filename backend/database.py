@@ -8,8 +8,21 @@ DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:postgres@postgre
 if DATABASE_URL.startswith("postgresql://"):
     DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
 
-engine = create_async_engine(DATABASE_URL, echo=False)
-AsyncSessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+engine = create_async_engine(
+    DATABASE_URL, 
+    echo=False,
+    pool_size=10,
+    max_overflow=20,
+    pool_pre_ping=True,  # Verify connections before use
+    pool_recycle=3600,   # Recycle connections every hour
+)
+AsyncSessionLocal = async_sessionmaker(
+    engine, 
+    class_=AsyncSession, 
+    expire_on_commit=False,
+    autoflush=True,
+    autocommit=False
+)
 
 
 class Base(DeclarativeBase):

@@ -3,7 +3,7 @@
 # Create symbolic link for api_keys.json if it doesn't exist
 if [ ! -L /app/public/api_keys.json ]; then
     echo "Creating symbolic link for api_keys.json..."
-    ln -s /app/output/frontend/public/api_keys.json /app/public/api_keys.json
+    ln -s /app/output/frontend/public/api_keys.json /app/public/api_keys.json 2>/dev/null || true
 fi
 
 # Start the application

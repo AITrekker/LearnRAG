@@ -1,0 +1,20 @@
+# Windows-compatible Dockerfile for LearnRAG frontend
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+RUN npm install
+
+# Copy source code (excluding startup.sh to avoid line ending issues)
+COPY public ./public
+COPY src ./src
+
+# Create api_keys.json symlink setup without shell script
+RUN mkdir -p /app/public
+
+EXPOSE 3000
+
+# Direct npm start without shell script to avoid Windows compatibility issues
+CMD ["sh", "-c", "if [ ! -L /app/public/api_keys.json ] && [ -f /app/output/frontend/public/api_keys.json ]; then ln -s /app/output/frontend/public/api_keys.json /app/public/api_keys.json 2>/dev/null || true; fi; npm start"]
