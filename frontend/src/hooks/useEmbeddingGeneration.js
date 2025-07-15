@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from 'react-query';
 import apiService from '../services/api';
 import { useErrorHandler } from './useErrorHandler';
+import { DEFAULTS, POLLING_INTERVALS, POLLING_THRESHOLDS } from '../config';
 
 /**
  * useEmbeddingGeneration Hook - Advanced State Management for RAG Embedding Pipeline
@@ -21,10 +22,10 @@ import { useErrorHandler } from './useErrorHandler';
 export const useEmbeddingGeneration = (apiKey) => {
   // Configuration state
   const [config, setConfig] = useState({
-    embedding_model: 'sentence-transformers/all-MiniLM-L6-v2',
-    chunking_strategy: 'fixed_size',
-    chunk_size: 512,
-    chunk_overlap: 50
+    embedding_model: DEFAULTS.EMBEDDING_MODEL,
+    chunking_strategy: DEFAULTS.CHUNKING_STRATEGY,
+    chunk_size: DEFAULTS.CHUNK_SIZE,
+    chunk_overlap: DEFAULTS.CHUNK_OVERLAP
   });
 
   // Generation state
@@ -44,9 +45,9 @@ export const useEmbeddingGeneration = (apiKey) => {
       enabled: !!apiKey && isGenerating,
       // Smart polling: faster at start, slower for long operations
       refetchInterval: isGenerating ? (
-        pollCount < 30 ? 1000 :   // First 30 polls: every 1 second
-        pollCount < 90 ? 2000 :   // Next 60 polls: every 2 seconds  
-        3000                      // After 90 polls: every 3 seconds
+        pollCount < POLLING_THRESHOLDS.FAST_TO_MEDIUM ? POLLING_INTERVALS.FAST :
+        pollCount < POLLING_THRESHOLDS.MEDIUM_TO_SLOW ? POLLING_INTERVALS.MEDIUM :
+        POLLING_INTERVALS.SLOW
       ) : false,
       refetchIntervalInBackground: false, // Save battery/CPU when tab not active
       onSuccess: (data) => {

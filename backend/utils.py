@@ -8,13 +8,14 @@ import mimetypes
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from models import Tenant
+from config import INTERNAL_FILES_DIR, DEMO_DATA_DIR, MODELS_CACHE_DIR, OUTPUT_DIR
 
 class PathConfig:
-    """Centralized path configuration"""
-    INTERNAL_FILES = Path("/app/internal_files")
-    DEMO_DATA = Path("/app/setup") 
-    MODELS_CACHE = Path("/app/models_cache")
-    OUTPUT = Path("/app/output")
+    """Centralized path configuration using environment variables"""
+    INTERNAL_FILES = INTERNAL_FILES_DIR
+    DEMO_DATA = DEMO_DATA_DIR
+    MODELS_CACHE = MODELS_CACHE_DIR
+    OUTPUT = OUTPUT_DIR
 
 class DatabaseUtils:
     """Common database query patterns"""

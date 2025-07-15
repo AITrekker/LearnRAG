@@ -1,7 +1,6 @@
 import axios from 'axios';
 import { parseApiError, logError } from '../utils/errorHandling';
-
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+import { API_BASE_URL, API_TIMEOUT } from '../config';
 
 class ApiService {
   constructor() {
@@ -30,6 +29,7 @@ class ApiService {
   initializeClient() {
     this.client = axios.create({
       baseURL: `${API_BASE_URL}/api`,
+      timeout: API_TIMEOUT,
       headers: {
         'Content-Type': 'application/json',
       },

@@ -14,6 +14,7 @@ from models import (
 from api.auth import get_current_tenant
 from services.embedding_service import EmbeddingService
 from services.metrics_service import MetricsService
+from config import AVAILABLE_EMBEDDING_MODELS, CHUNKING_STRATEGIES
 
 router = APIRouter()
 
@@ -115,38 +116,7 @@ async def generate_embeddings(
 async def get_available_models():
     """Get list of available embedding models"""
     return {
-        "models": [
-            {
-                "name": "sentence-transformers/all-MiniLM-L6-v2",
-                "description": "Lightweight, fast model (384 dimensions)",
-                "dimension": 384,
-                "default": True
-            },
-            {
-                "name": "sentence-transformers/all-mpnet-base-v2",
-                "description": "Higher quality, slower (768 dimensions)",
-                "dimension": 768,
-                "default": False
-            },
-            {
-                "name": "BAAI/bge-small-en-v1.5",
-                "description": "Recent, good performance (384 dimensions)",
-                "dimension": 384,
-                "default": False
-            },
-            {
-                "name": "sentence-transformers/multi-qa-MiniLM-L6-cos-v1",
-                "description": "Optimized for Q&A (384 dimensions)",
-                "dimension": 384,
-                "default": False
-            },
-            {
-                "name": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
-                "description": "Multilingual support (384 dimensions)",
-                "dimension": 384,
-                "default": False
-            }
-        ]
+        "models": AVAILABLE_EMBEDDING_MODELS
     }
 
 
@@ -308,24 +278,5 @@ async def get_current_metrics(
 async def get_chunking_strategies():
     """Get list of available chunking strategies"""
     return {
-        "strategies": [
-            {
-                "name": "fixed_size",
-                "description": "Fixed-size chunks with word-based splitting and overlap",
-                "parameters": ["chunk_size", "chunk_overlap"],
-                "default": True
-            },
-            {
-                "name": "sentence",
-                "description": "Sentence-based chunks with natural boundaries",
-                "parameters": ["max_sentences"],
-                "default": False
-            },
-            {
-                "name": "recursive",
-                "description": "Recursive chunking: paragraphs → sentences → fixed size",
-                "parameters": ["chunk_size", "chunk_overlap"],
-                "default": False
-            }
-        ]
+        "strategies": CHUNKING_STRATEGIES
     }

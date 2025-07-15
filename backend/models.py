@@ -13,6 +13,7 @@ from sqlalchemy.sql import func
 from sqlalchemy.dialects.postgresql import JSONB
 from pgvector.sqlalchemy import Vector
 from database import Base
+from config import DEFAULT_EMBEDDING_MODEL, DEFAULT_CHUNKING_STRATEGY, DEFAULT_CHUNK_SIZE, DEFAULT_CHUNK_OVERLAP, DEFAULT_LLM_MODEL, DEFAULT_TOP_K, DEFAULT_MAX_ANSWER_LENGTH
 
 # =============================================================================
 # DATABASE MODELS (SQLAlchemy)
@@ -70,10 +71,10 @@ class TenantEmbeddingSettings(Base):
     __tablename__ = "tenant_embedding_settings"
     
     tenant_id = Column(Integer, ForeignKey("tenants.id", ondelete="CASCADE"), primary_key=True)
-    embedding_model = Column(String(100), nullable=False, default='sentence-transformers/all-MiniLM-L6-v2')
-    chunking_strategy = Column(String(50), nullable=False, default='fixed_size')
-    chunk_size = Column(Integer, default=512)
-    chunk_overlap = Column(Integer, nullable=False, default=50)
+    embedding_model = Column(String(100), nullable=False, default=DEFAULT_EMBEDDING_MODEL)
+    chunking_strategy = Column(String(50), nullable=False, default=DEFAULT_CHUNKING_STRATEGY)
+    chunk_size = Column(Integer, default=DEFAULT_CHUNK_SIZE)
+    chunk_overlap = Column(Integer, nullable=False, default=DEFAULT_CHUNK_OVERLAP)
     updated_at = Column(DateTime, default=func.now())
     
     tenant = relationship("Tenant", back_populates="embedding_settings")
@@ -101,19 +102,19 @@ class RagSession(Base):
 # Core search and answer models
 class SearchRequest(BaseModel):
     query: str = Field(..., description="Search query")
-    embedding_model: str = Field(default="sentence-transformers/all-MiniLM-L6-v2", description="Embedding model")
-    chunking_strategy: str = Field(default="fixed_size", description="Chunking strategy")
+    embedding_model: str = Field(default=DEFAULT_EMBEDDING_MODEL, description="Embedding model")
+    chunking_strategy: str = Field(default=DEFAULT_CHUNKING_STRATEGY, description="Chunking strategy")
     rag_technique: str = Field(default="similarity_search", description="RAG technique")
-    top_k: int = Field(default=5, description="Number of results")
+    top_k: int = Field(default=DEFAULT_TOP_K, description="Number of results")
 
 class AnswerRequest(BaseModel):
     query: str = Field(..., description="Question to answer")
-    embedding_model: str = Field(default="sentence-transformers/all-MiniLM-L6-v2", description="Embedding model")
-    chunking_strategy: str = Field(default="fixed_size", description="Chunking strategy")
-    answer_model: str = Field(default="google/flan-t5-base", description="LLM model")
-    top_k: int = Field(default=10, description="Number of chunks")
+    embedding_model: str = Field(default=DEFAULT_EMBEDDING_MODEL, description="Embedding model")
+    chunking_strategy: str = Field(default=DEFAULT_CHUNKING_STRATEGY, description="Chunking strategy")
+    answer_model: str = Field(default=DEFAULT_LLM_MODEL, description="LLM model")
+    top_k: int = Field(default=DEFAULT_TOP_K, description="Number of chunks")
     min_similarity: float = Field(default=0.3, description="Minimum similarity")
-    max_length: int = Field(default=200, description="Max answer length")
+    max_length: int = Field(default=DEFAULT_MAX_ANSWER_LENGTH, description="Max answer length")
 
 class SearchResult(BaseModel):
     chunk_text: str = Field(..., description="Text content")

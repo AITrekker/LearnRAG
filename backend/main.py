@@ -97,9 +97,11 @@ async def emoji_logging_middleware(request: Request, call_next):
 
 
 # CORS
+from config import CORS_ORIGINS
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
