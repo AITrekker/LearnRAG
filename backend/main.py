@@ -1,12 +1,15 @@
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from contextlib import asynccontextmanager
 import logging
 import time
+import traceback
 
 from database import init_db
 from api import auth, tenants, embeddings, rag
 from services.tenant_service import TenantService
+from exceptions import LearnRAGException, ErrorResponse, ErrorCode, ErrorType
 
 
 @asynccontextmanager
@@ -30,6 +33,46 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan
 )
+
+# Global exception handlers
+@app.exception_handler(LearnRAGException)
+async def learnrag_exception_handler(request: Request, exc: LearnRAGException):
+    """Handle custom LearnRAG exceptions with standardized responses"""
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=exc.error_response.dict()
+    )
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    """Convert FastAPI HTTPExceptions to standardized format"""
+    error_response = ErrorResponse(
+        error_code="HTTP_ERROR",
+        error_type=ErrorType.SYSTEM if exc.status_code >= 500 else ErrorType.VALIDATION,
+        message=exc.detail if isinstance(exc.detail, str) else "Request failed",
+        details={"original_detail": exc.detail} if not isinstance(exc.detail, str) else None
+    )
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=error_response.dict()
+    )
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    """Handle unexpected exceptions with safe error messages"""
+    # Log the full error for debugging
+    logging.error(f"Unhandled exception: {exc}", exc_info=True)
+    
+    error_response = ErrorResponse(
+        error_code=ErrorCode.DATABASE_ERROR if "database" in str(exc).lower() else "INTERNAL_ERROR",
+        error_type=ErrorType.SYSTEM,
+        message="An unexpected error occurred. Please try again.",
+        details={"error_type": type(exc).__name__} if logging.getLogger().level <= logging.DEBUG else None
+    )
+    return JSONResponse(
+        status_code=500,
+        content=error_response.dict()
+    )
 
 @app.middleware("http")
 async def emoji_logging_middleware(request: Request, call_next):

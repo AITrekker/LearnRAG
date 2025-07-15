@@ -1,3 +1,24 @@
+"""
+RAG Service - The Heart of Retrieval-Augmented Generation
+
+Teaching Purpose: This service demonstrates the core RAG retrieval pipeline:
+
+1. QUERY PROCESSING: Convert user questions into searchable vectors
+2. SIMILARITY SEARCH: Find relevant chunks using mathematical similarity
+3. CONTEXT RETRIEVAL: Return the most relevant text chunks for LLM processing
+
+Core RAG Concepts Illustrated:
+- Vector similarity search using cosine distance in high-dimensional space
+- pgvector database optimization for semantic search at scale
+- Trade-offs between search precision (top-k) and context richness
+- Future extensibility for hybrid and advanced RAG techniques
+
+Mathematical Foundation:
+- Cosine similarity: measures angle between vectors (0-1, higher = more similar)
+- L2 distance: geometric distance in vector space
+- Vector space: high-dimensional representation where similar meanings cluster
+"""
+
 from typing import List, Optional
 import numpy as np
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,11 +30,36 @@ from services.embedding_service import EmbeddingService
 
 
 class RagService:
+    """
+    Core RAG retrieval service implementing semantic search over vector databases.
+    
+    Teaching Concepts:
+    - Query-to-vector transformation for semantic search
+    - Vector similarity mathematics (cosine distance)
+    - Database optimization for high-dimensional vector queries
+    - Scalable retrieval patterns for production RAG systems
+    """
+    
     def __init__(self):
         self.embedding_service = EmbeddingService()
 
     async def generate_query_embedding(self, query: str, model_name: str) -> List[float]:
-        """Generate embedding for search query"""
+        """
+        Convert user query into searchable vector - RAG Step 1
+        
+        Teaching Concepts:
+        WHY EMBED QUERIES?
+        - User questions must be in same vector space as document chunks
+        - Same model ensures consistent similarity measurements
+        - Query vectors enable "meaning-based" rather than "keyword-based" search
+        
+        EXAMPLE:
+        Query: "How do I reset my password?"
+        Vector: [0.1, -0.3, 0.8, ...] (384 or 768 dimensions)
+        
+        This vector will be closest to chunks containing password reset info,
+        even if they don't use the exact words "reset" or "password"
+        """
         return await self.embedding_service.generate_query_embedding(query, model_name)
 
     async def similarity_search(
@@ -25,7 +71,31 @@ class RagService:
         top_k: int,
         db: AsyncSession
     ) -> List[SearchResult]:
-        """Perform cosine similarity search using pgvector"""
+        """
+        Core semantic search using vector similarity - RAG Step 2
+        
+        Teaching Concepts:
+        VECTOR SIMILARITY MATHEMATICS:
+        - Cosine distance: 1 - cosine_similarity (0 = identical, 1 = orthogonal)
+        - pgvector <=> operator: optimized cosine distance for PostgreSQL
+        - Lower distance = higher similarity = more relevant
+        
+        SQL EXPLANATION:
+        1. JOIN embeddings with files for metadata
+        2. Filter by tenant/model/strategy (data isolation)
+        3. ORDER BY cosine distance (closest vectors first)
+        4. LIMIT to top_k results (balance relevance vs context)
+        
+        PRODUCTION OPTIMIZATIONS:
+        - pgvector indexes for sub-second search over millions of vectors
+        - Batch processing for multiple queries
+        - Caching for frequently accessed content
+        
+        SEARCH QUALITY FACTORS:
+        - top_k: More results = more context but potentially less relevant
+        - Model consistency: Query and chunks must use same embedding model
+        - Chunking strategy: Affects granularity of retrieved information
+        """
         
         # Convert query embedding to pgvector format
         query_vector = str(query_embedding)

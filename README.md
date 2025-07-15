@@ -2,6 +2,16 @@
 
 A dockerized educational platform for learning and experimenting with different RAG (Retrieval-Augmented Generation) techniques and embedding models.
 
+## 🎓 Recent Updates - Code Teaching Improvements ✅
+
+### Phase 1 Code Quality Improvements (COMPLETED)
+- ✅ **Simplified Models**: Removed confusing aliases, clear `EmbeddingSettingsRequest`/`Response` classes
+- ✅ **Component Breakdown**: Split large `Embeddings.js` into focused components (`EmbeddingSettings`, `EmbeddingProgress`, `FileSelection`)  
+- ✅ **Standardized Error Handling**: Comprehensive backend exceptions, frontend error utilities, user-friendly notifications
+- ✅ **Educational Docstrings**: Added teaching-focused comments explaining RAG concepts throughout codebase
+
+**Result**: Code is now highly suitable for educational purposes, LinkedIn posts, and teaching RAG development patterns.
+
 ## Phase 1 - Foundation ✅ COMPLETE
 
 ### Features Implemented
@@ -29,17 +39,23 @@ A dockerized educational platform for learning and experimenting with different 
 
 ## Quick Start
 
-### 1. Initial Setup
+### 1. Choose Your Deployment Mode
+
+**🚀 GPU Mode (NVIDIA RTX 5070 Optimized):**
 ```bash
-# Clone and enter directory
-cd LearnRAG
-
-# For GPU support (RTX 5070 optimized)
+# For computers with NVIDIA GPU
 docker-compose up --build
+```
 
-# For CPU-only (fallback)
+**💻 CPU Mode (Universal Compatibility):**
+```bash
+# For computers without NVIDIA GPU or any CPU-only setup
 docker-compose -f docker-compose.cpu.yml up --build
 ```
+
+**🔧 Technical Differences:**
+- **GPU Mode**: Uses NVIDIA PyTorch container, CUDA acceleration, faster embedding generation
+- **CPU Mode**: Uses standard Python container, CPU-only PyTorch, works on any computer
 
 ### 2. Access the Application
 - **Frontend**: http://localhost:3000
@@ -195,9 +211,13 @@ docker-compose exec postgres psql -U postgres -d learnrag
 
 ### Rebuild After Changes
 ```bash
-# Rebuild and restart
+# GPU Mode rebuild
 docker-compose down
 docker-compose up --build
+
+# CPU Mode rebuild  
+docker-compose -f docker-compose.cpu.yml down
+docker-compose -f docker-compose.cpu.yml up --build
 ```
 
 ## Notes

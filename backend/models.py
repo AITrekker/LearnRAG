@@ -143,6 +143,15 @@ class AnswerResponse(BaseModel):
 
 # Embedding models
 class GenerateEmbeddingsRequest(BaseModel):
+    """
+    Request to generate embeddings for RAG system.
+    
+    Teaching Note: This demonstrates the core parameters needed for RAG:
+    - embedding_model: Which neural network model to use for text → vector conversion
+    - chunking_strategy: How to split documents (fixed_size, sentence, recursive)
+    - chunk_size: How many tokens per chunk (balance between context vs precision)
+    - chunk_overlap: Overlap between chunks to preserve context across boundaries
+    """
     embedding_model: Optional[str] = Field(None, description="Embedding model")
     chunking_strategy: Optional[str] = Field(None, description="Chunking strategy")
     chunk_size: Optional[int] = Field(None, description="Chunk size")
@@ -202,6 +211,18 @@ class CompareRequest(BaseModel):
     queries: List[str] = Field(..., description="Queries to test")
     techniques: List[str] = Field(..., description="Techniques to compare")
 
-# Simple aliases for backwards compatibility
-UpdateEmbeddingSettings = EmbeddingSettings
-TenantEmbeddingSettingsSchema = EmbeddingSettings
+# Request/Response models for embedding settings
+class EmbeddingSettingsRequest(BaseModel):
+    """Request model for updating tenant embedding settings"""
+    embedding_model: str = Field(..., description="Embedding model name")
+    chunking_strategy: str = Field(..., description="Text chunking strategy") 
+    chunk_size: int = Field(512, description="Size of text chunks")
+    chunk_overlap: int = Field(50, description="Overlap between chunks")
+
+class EmbeddingSettingsResponse(BaseModel):
+    """Response model for tenant embedding settings"""
+    embedding_model: str
+    chunking_strategy: str
+    chunk_size: int
+    chunk_overlap: int
+    updated_at: Optional[datetime] = None

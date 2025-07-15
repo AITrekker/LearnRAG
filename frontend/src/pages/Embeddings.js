@@ -1,23 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Zap, Play, CheckCircle, FileText, Settings, Loader, 
-  Save, RotateCcw, AlertCircle, TrendingUp, Clock
+  Zap, Play, Settings, Loader
 } from 'lucide-react';
 import apiService from '../services/api';
-import { formatFileSize } from '../utils';
+import EmbeddingSettings from '../components/EmbeddingSettings';
+import EmbeddingProgress from '../components/EmbeddingProgress';
+import FileSelection from '../components/FileSelection';
 
 const Embeddings = ({ apiKey }) => {
   const queryClient = useQueryClient();
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [showSettings, setShowSettings] = useState(false);
-  const [settingsForm, setSettingsForm] = useState({
-    embedding_model: '',
-    chunking_strategy: '',
-    chunk_size: 512,
-    chunk_overlap: 50
-  });
 
   // Fetch embedding settings
   const { data: settings } = useQuery(
@@ -60,17 +55,6 @@ const Embeddings = ({ apiKey }) => {
     }
   );
 
-  // Update settings mutation
-  const updateSettingsMutation = useMutation(
-    apiService.updateEmbeddingSettings,
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries('embeddingSettings');
-        queryClient.invalidateQueries('tenantFiles'); // Refresh to show no embeddings
-        setShowSettings(false);
-      }
-    }
-  );
 
   // Generate embeddings mutation
   const generateEmbeddingsMutation = useMutation(
@@ -84,40 +68,13 @@ const Embeddings = ({ apiKey }) => {
     }
   );
 
-  // Initialize form when settings load
-  useEffect(() => {
-    if (settings) {
-      setSettingsForm({
-        embedding_model: settings.embedding_model,
-        chunking_strategy: settings.chunking_strategy,
-        chunk_size: settings.chunk_size || 512,
-        chunk_overlap: settings.chunk_overlap || 50
-      });
-    }
-  }, [settings]);
-
-  const handleUpdateSettings = () => {
-    updateSettingsMutation.mutate(settingsForm);
-  };
-
-  const handleResetSettings = () => {
-    if (settings) {
-      setSettingsForm({
-        embedding_model: settings.embedding_model,
-        chunking_strategy: settings.chunking_strategy,
-        chunk_size: settings.chunk_size || 512,
-        chunk_overlap: settings.chunk_overlap || 50
-      });
-    }
-  };
 
   const handleGenerate = () => {
-    // Use current tenant settings, not form values
     generateEmbeddingsMutation.mutate({
-      embedding_model: settings?.embedding_model || settingsForm.embedding_model,
-      chunking_strategy: settings?.chunking_strategy || settingsForm.chunking_strategy,
-      chunk_size: settings?.chunk_size || settingsForm.chunk_size,
-      chunk_overlap: settings?.chunk_overlap || settingsForm.chunk_overlap,
+      embedding_model: settings?.embedding_model,
+      chunking_strategy: settings?.chunking_strategy,
+      chunk_size: settings?.chunk_size,
+      chunk_overlap: settings?.chunk_overlap,
       file_ids: selectedFiles.length > 0 ? selectedFiles : undefined
     });
   };
@@ -130,13 +87,6 @@ const Embeddings = ({ apiKey }) => {
     );
   };
 
-  const getSelectedStrategy = () => {
-    return strategies?.strategies?.find(s => s.name === settingsForm.chunking_strategy);
-  };
-
-  const getSelectedModel = () => {
-    return models?.models?.find(m => m.name === settingsForm.embedding_model);
-  };
 
   if (modelsLoading || strategiesLoading || filesLoading) {
     return (
@@ -177,280 +127,26 @@ const Embeddings = ({ apiKey }) => {
       </div>
 
       {/* Current Progress */}
-      <AnimatePresence>
-        {metrics?.active && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="card border-primary-200 bg-primary-50"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center">
-                <TrendingUp className="w-5 h-5 text-primary-600 mr-2" />
-                <h3 className="text-lg font-semibold text-primary-900">Processing in Progress</h3>
-              </div>
-              <div className="flex items-center text-sm text-primary-700">
-                <Clock className="w-4 h-4 mr-1" />
-                {metrics.progress?.elapsed_time?.toFixed(1)}s
-              </div>
-            </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold text-primary-900">
-                  {metrics.progress?.files_processed || 0}
-                </div>
-                <div className="text-sm text-primary-600">Files Processed</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-primary-900">
-                  {metrics.progress?.total_files || 0}
-                </div>
-                <div className="text-sm text-primary-600">Total Files</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-primary-900">
-                  {metrics.progress?.total_chunks || 0}
-                </div>
-                <div className="text-sm text-primary-600">Chunks Generated</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-primary-900">
-                  {metrics.progress?.total_tokens || 0}
-                </div>
-                <div className="text-sm text-primary-600">Tokens Processed</div>
-              </div>
-            </div>
+      <EmbeddingProgress metrics={metrics} />
 
-            {/* Progress Bar */}
-            {metrics.progress?.total_files > 0 && (
-              <div className="mt-4">
-                <div className="flex justify-between text-sm text-primary-700 mb-1">
-                  <span>Progress</span>
-                  <span>{metrics.progress.files_processed}/{metrics.progress.total_files} files</span>
-                </div>
-                <div className="w-full bg-primary-200 rounded-full h-2">
-                  <div 
-                    className="bg-primary-600 h-2 rounded-full transition-all duration-500"
-                    style={{ 
-                      width: `${(metrics.progress.files_processed / metrics.progress.total_files) * 100}%` 
-                    }}
-                  ></div>
-                </div>
-              </div>
-            )}
-
-            {/* Current/Recent Files */}
-            {metrics.progress?.files && metrics.progress.files.length > 0 && (
-              <div className="mt-4">
-                <h4 className="text-sm font-medium text-primary-900 mb-2">
-                  {metrics.progress.files_processed < metrics.progress.total_files 
-                    ? 'Recent Files:' 
-                    : 'Completed Files:'
-                  }
-                </h4>
-                <div className="space-y-2">
-                  {metrics.progress.files.slice(-3).map((file, idx) => (
-                    <div key={idx} className="flex justify-between items-center text-sm bg-white rounded-lg p-2 border border-primary-200">
-                      <div className="flex items-center">
-                        <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
-                        <span className="text-primary-900 font-medium">{file.filename}</span>
-                      </div>
-                      <div className="text-primary-700">
-                        {file.chunks_generated} chunks • {file.processing_time_sec}s
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Settings Panel */}
-      <AnimatePresence>
-        {showSettings && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="card border-amber-200 bg-amber-50"
-          >
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center">
-                <Settings className="w-5 h-5 text-amber-600 mr-2" />
-                <h3 className="text-lg font-semibold text-amber-900">Embedding Configuration</h3>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={handleResetSettings}
-                  className="flex items-center px-3 py-1 text-sm text-amber-700 hover:text-amber-800"
-                >
-                  <RotateCcw className="w-4 h-4 mr-1" />
-                  Reset
-                </button>
-                <button
-                  onClick={handleUpdateSettings}
-                  disabled={updateSettingsMutation.isLoading}
-                  className="flex items-center px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50"
-                >
-                  {updateSettingsMutation.isLoading ? (
-                    <Loader className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <Save className="w-4 h-4 mr-2" />
-                  )}
-                  Save Settings
-                </button>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Model Selection */}
-              <div>
-                <label className="block text-sm font-medium text-amber-800 mb-2">
-                  Embedding Model
-                </label>
-                <select
-                  value={settingsForm.embedding_model}
-                  onChange={(e) => setSettingsForm(prev => ({ ...prev, embedding_model: e.target.value }))}
-                  className="w-full p-3 border border-amber-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white"
-                >
-                  {models?.models?.map((model) => (
-                    <option key={model.name} value={model.name}>
-                      {model.name} ({model.dimension}d)
-                    </option>
-                  ))}
-                </select>
-                <p className="text-sm text-amber-700 mt-1">
-                  {getSelectedModel()?.description}
-                </p>
-              </div>
-
-              {/* Chunking Strategy */}
-              <div>
-                <label className="block text-sm font-medium text-amber-800 mb-2">
-                  Chunking Strategy
-                </label>
-                <select
-                  value={settingsForm.chunking_strategy}
-                  onChange={(e) => setSettingsForm(prev => ({ ...prev, chunking_strategy: e.target.value }))}
-                  className="w-full p-3 border border-amber-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent bg-white"
-                >
-                  {strategies?.strategies?.map((strategy) => (
-                    <option key={strategy.name} value={strategy.name}>
-                      {strategy.name}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-sm text-amber-700 mt-1">
-                  {getSelectedStrategy()?.description}
-                </p>
-              </div>
-
-              {/* Chunk Size (for fixed_size and recursive) */}
-              {(settingsForm.chunking_strategy === 'fixed_size' || settingsForm.chunking_strategy === 'recursive') && (
-                <div>
-                  <label className="block text-sm font-medium text-amber-800 mb-2">
-                    Chunk Size (tokens)
-                  </label>
-                  <input
-                    type="number"
-                    min="50"
-                    max="2000"
-                    value={settingsForm.chunk_size}
-                    onChange={(e) => setSettingsForm(prev => ({ ...prev, chunk_size: parseInt(e.target.value) }))}
-                    className="w-full p-3 border border-amber-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                  />
-                  <p className="text-sm text-amber-700 mt-1">Number of tokens per chunk</p>
-                </div>
-              )}
-
-              {/* Chunk Overlap */}
-              <div>
-                <label className="block text-sm font-medium text-amber-800 mb-2">
-                  Chunk Overlap (tokens)
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  max="500"
-                  value={settingsForm.chunk_overlap}
-                  onChange={(e) => setSettingsForm(prev => ({ ...prev, chunk_overlap: parseInt(e.target.value) }))}
-                  className="w-full p-3 border border-amber-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                />
-                <p className="text-sm text-amber-700 mt-1">Overlapping tokens between chunks</p>
-              </div>
-            </div>
-
-            <div className="mt-4 p-3 bg-amber-100 rounded-lg border border-amber-200">
-              <div className="flex items-start">
-                <AlertCircle className="w-5 h-5 text-amber-600 mr-2 mt-0.5" />
-                <div className="text-sm text-amber-800">
-                  <strong>Important:</strong> Changing settings will automatically delete all existing embeddings 
-                  for this tenant to ensure consistency. You'll need to regenerate embeddings after saving.
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Settings Modal */}
+      <EmbeddingSettings
+        apiKey={apiKey}
+        settings={settings}
+        models={models}
+        strategies={strategies}
+        showSettings={showSettings}
+        setShowSettings={setShowSettings}
+      />
 
       {/* File Selection */}
-      <div className="card">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center">
-            <FileText className="w-5 h-5 text-primary-600 mr-2" />
-            <h3 className="text-lg font-semibold text-gray-900">Select Files</h3>
-          </div>
-          <div className="text-sm text-gray-500">
-            {selectedFiles.length > 0 ? `${selectedFiles.length} selected` : 'All files'}
-          </div>
-        </div>
-
-        <div className="space-y-2 max-h-64 overflow-y-auto overflow-x-hidden">
-          {files?.map((file) => (
-            <motion.div
-              key={file.id}
-              whileHover={{ scale: 1.01 }}
-              className={`p-3 border rounded-lg cursor-pointer transition-colors ${
-                selectedFiles.includes(file.id)
-                  ? 'border-primary-300 bg-primary-50'
-                  : 'border-gray-200 hover:border-gray-300'
-              }`}
-              onClick={() => toggleFileSelection(file.id)}
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium text-gray-900">{file.name}</p>
-                  <p className="text-sm text-gray-500">
-                    {formatFileSize(file.size)} • {file.type}
-                  </p>
-                </div>
-                {selectedFiles.includes(file.id) && (
-                  <CheckCircle className="w-5 h-5 text-primary-600" />
-                )}
-              </div>
-            </motion.div>
-          ))}
-        </div>
-
-        <div className="mt-4 flex items-center justify-between">
-          <button
-            onClick={() => setSelectedFiles([])}
-            className="text-sm text-gray-500 hover:text-gray-700"
-          >
-            Clear selection
-          </button>
-          <button
-            onClick={() => setSelectedFiles(files?.map(f => f.id) || [])}
-            className="text-sm text-primary-600 hover:text-primary-700"
-          >
-            Select all
-          </button>
-        </div>
-      </div>
+      <FileSelection
+        files={files}
+        selectedFiles={selectedFiles}
+        onToggleFile={toggleFileSelection}
+        onClearSelection={() => setSelectedFiles([])}
+        onSelectAll={setSelectedFiles}
+      />
 
       {/* Generate Button */}
       <div className="card">

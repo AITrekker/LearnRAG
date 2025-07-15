@@ -5,7 +5,7 @@ from typing import List
 
 from database import get_db
 from models import Tenant, File, Embedding, TenantEmbeddingSettings
-from models import TenantInfo, FileInfo, GeneralEmbeddingStatus, TenantEmbeddingSettingsSchema as EmbeddingSettingsSchema, UpdateEmbeddingSettings
+from models import TenantInfo, FileInfo, GeneralEmbeddingStatus, EmbeddingSettingsResponse, EmbeddingSettingsRequest
 from api.auth import get_current_tenant
 from services.tenant_service import TenantService
 
@@ -183,7 +183,7 @@ async def get_embedding_summary(
     )
 
 
-@router.get("/embedding-settings", response_model=EmbeddingSettingsSchema)
+@router.get("/embedding-settings", response_model=EmbeddingSettingsResponse)
 async def get_embedding_settings(
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db)
@@ -211,9 +211,9 @@ async def get_embedding_settings(
     return settings
 
 
-@router.post("/embedding-settings", response_model=EmbeddingSettingsSchema)
+@router.post("/embedding-settings", response_model=EmbeddingSettingsResponse)
 async def update_embedding_settings(
-    settings_update: UpdateEmbeddingSettings,
+    settings_update: EmbeddingSettingsRequest,
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db)
 ):

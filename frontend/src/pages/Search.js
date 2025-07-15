@@ -1,50 +1,61 @@
-import React, { useState } from 'react';
-import { useQuery, useMutation } from 'react-query';
+/**
+ * RAG Search Interface - Teaching Semantic Search and Answer Generation
+ * Updated: 2025-07-15 (Phase 2 refactoring complete)
+ * 
+ * Teaching Purpose: This component demonstrates the complete RAG workflow:
+ * 
+ * 1. QUERY PROCESSING: User enters natural language question
+ * 2. SEMANTIC SEARCH: Convert query to vector, find similar content chunks  
+ * 3. CONTEXT RETRIEVAL: Display ranked results with similarity scores
+ * 4. ANSWER GENERATION: Use LLM to synthesize answer from retrieved context
+ * 
+ * Key RAG Concepts:
+ * - Embedding model choice affects search quality and speed
+ * - Chunking strategy impacts what information gets retrieved
+ * - top_k parameter balances precision vs context richness
+ * - Similarity scores show how "related" content is to the query
+ * - LLM takes retrieved chunks and generates human-readable answers
+ */
+
+import React from 'react';
+import { useQuery } from 'react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search as SearchIcon, Clock, Target, FileText, BarChart3, Brain, Database } from 'lucide-react';
-import apiService from '../services/api';
+import { useRagSearch } from '../hooks/useRagSearch';
+import ErrorNotification from '../components/ErrorNotification';
 
 const Search = ({ apiKey }) => {
-  const [query, setQuery] = useState('');
-  const [selectedModel, setSelectedModel] = useState('sentence-transformers/all-MiniLM-L6-v2');
-  const [selectedStrategy, setSelectedStrategy] = useState('fixed_size');
-  const [selectedTechnique, setSelectedTechnique] = useState('similarity_search');
-  const [topK, setTopK] = useState(5);
-  const [searchResults, setSearchResults] = useState(null);
-  const [answerResult, setAnswerResult] = useState(null);
+  // Use custom RAG search hook for improved state management
+  const {
+    searchConfig,
+    updateConfig,
+    searchResults,
+    answerResult,
+    performSearch,
+    generateAnswer,
+    isSearching,
+    isGeneratingAnswer,
+    error,
+    clearError
+  } = useRagSearch();
 
+  // Available models and techniques queries  
   const { data: models } = useQuery(
     'embeddingModels',
-    apiService.getAvailableModels,
+    async () => {
+      const apiService = (await import('../services/api')).default;
+      return apiService.getAvailableModels();
+    },
     { enabled: !!apiKey }
   );
 
   const { data: techniques } = useQuery(
     'ragTechniques',
-    apiService.getRagTechniques,
+    async () => {
+      const apiService = (await import('../services/api')).default;
+      return apiService.getRagTechniques();
+    },
     { enabled: !!apiKey }
-  );
-
-  const { mutate: performSearch, isLoading: searching } = useMutation(
-    apiService.search,
-    {
-      onSuccess: (data) => {
-        setSearchResults(data);
-        setAnswerResult(null); // Clear answer when doing chunk search
-      },
-      onError: (error) => console.error('Search failed:', error)
-    }
-  );
-
-  const { mutate: generateAnswer, isLoading: generating } = useMutation(
-    apiService.generateAnswer,
-    {
-      onSuccess: (data) => {
-        setAnswerResult(data);
-        setSearchResults(null); // Clear search results when generating answer
-      },
-      onError: (error) => console.error('Answer generation failed:', error)
-    }
   );
 
   const chunkingStrategies = [
@@ -53,29 +64,14 @@ const Search = ({ apiKey }) => {
 
   const handleSearch = (e) => {
     e.preventDefault();
-    if (!query.trim()) return;
-
-    performSearch({
-      query: query.trim(),
-      embedding_model: selectedModel,
-      chunking_strategy: selectedStrategy,
-      rag_technique: selectedTechnique,
-      top_k: topK
-    });
+    if (!searchConfig.query.trim()) return;
+    performSearch();
   };
 
   const handleGenerateAnswer = (e) => {
-    e.preventDefault();
-    if (!query.trim()) return;
-
-    generateAnswer({
-      query: query.trim(),
-      embedding_model: selectedModel,
-      chunking_strategy: selectedStrategy,
-      answer_model: "google/flan-t5-base",
-      top_k: 10,
-      min_similarity: 0.3
-    });
+    e.preventDefault(); 
+    if (!searchConfig.query.trim()) return;
+    generateAnswer();
   };
 
   const getSimilarityColor = (score) => {
@@ -91,6 +87,15 @@ const Search = ({ apiKey }) => {
         <p className="text-gray-600 mt-1">Search through your documents using different RAG techniques</p>
       </div>
 
+      {/* Error Notification */}
+      {error && (
+        <ErrorNotification 
+          error={error}
+          onDismiss={clearError}
+          className="mb-4"
+        />
+      )}
+
       {/* Search Configuration */}
       <div className="card">
         <div className="flex items-center mb-4">
@@ -103,8 +108,8 @@ const Search = ({ apiKey }) => {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Model</label>
             <select
-              value={selectedModel}
-              onChange={(e) => setSelectedModel(e.target.value)}
+              value={searchConfig.embedding_model}
+              onChange={(e) => updateConfig({ embedding_model: e.target.value })}
               className="w-full p-2 border border-gray-300 rounded-lg text-sm"
             >
               {models?.models?.map((model) => (
@@ -119,8 +124,8 @@ const Search = ({ apiKey }) => {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Chunking</label>
             <select
-              value={selectedStrategy}
-              onChange={(e) => setSelectedStrategy(e.target.value)}
+              value={searchConfig.chunking_strategy}
+              onChange={(e) => updateConfig({ chunking_strategy: e.target.value })}
               className="w-full p-2 border border-gray-300 rounded-lg text-sm"
             >
               {chunkingStrategies.map((strategy) => (
@@ -135,8 +140,8 @@ const Search = ({ apiKey }) => {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">RAG Technique</label>
             <select
-              value={selectedTechnique}
-              onChange={(e) => setSelectedTechnique(e.target.value)}
+              value={searchConfig.rag_technique}
+              onChange={(e) => updateConfig({ rag_technique: e.target.value })}
               className="w-full p-2 border border-gray-300 rounded-lg text-sm"
             >
               {techniques?.techniques?.map((technique) => (
@@ -151,8 +156,8 @@ const Search = ({ apiKey }) => {
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Top K</label>
             <select
-              value={topK}
-              onChange={(e) => setTopK(Number(e.target.value))}
+              value={searchConfig.top_k}
+              onChange={(e) => updateConfig({ top_k: Number(e.target.value) })}
               className="w-full p-2 border border-gray-300 rounded-lg text-sm"
             >
               {[3, 5, 10, 15, 20].map((k) => (
@@ -173,8 +178,8 @@ const Search = ({ apiKey }) => {
             <div className="relative">
               <input
                 type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                value={searchConfig.query}
+                onChange={(e) => updateConfig({ query: e.target.value })}
                 placeholder="Enter your search query..."
                 className="w-full p-4 pr-12 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
               />
@@ -185,18 +190,18 @@ const Search = ({ apiKey }) => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Retrieve Context Button */}
             <motion.button
-              whileHover={{ scale: searching ? 1 : 1.02 }}
-              whileTap={{ scale: searching ? 1 : 0.98 }}
+              whileHover={{ scale: isSearching ? 1 : 1.02 }}
+              whileTap={{ scale: isSearching ? 1 : 0.98 }}
               type="button"
               onClick={handleSearch}
-              disabled={searching || generating || !query.trim()}
+              disabled={isSearching || isGeneratingAnswer || !searchConfig.query.trim()}
               className={`flex items-center justify-center px-6 py-3 rounded-lg font-medium transition-colors ${
-                searching || generating || !query.trim()
+                isSearching || isGeneratingAnswer || !searchConfig.query.trim()
                   ? 'bg-gray-300 cursor-not-allowed'
                   : 'bg-blue-600 hover:bg-blue-700 text-white'
               }`}
             >
-              {searching ? (
+              {isSearching ? (
                 <>
                   <Clock className="w-5 h-5 mr-2 animate-spin" />
                   Searching...
@@ -211,18 +216,18 @@ const Search = ({ apiKey }) => {
 
             {/* Generate Response Button */}
             <motion.button
-              whileHover={{ scale: generating ? 1 : 1.02 }}
-              whileTap={{ scale: generating ? 1 : 0.98 }}
+              whileHover={{ scale: isGeneratingAnswer ? 1 : 1.02 }}
+              whileTap={{ scale: isGeneratingAnswer ? 1 : 0.98 }}
               type="button"
               onClick={handleGenerateAnswer}
-              disabled={searching || generating || !query.trim()}
+              disabled={isSearching || isGeneratingAnswer || !searchConfig.query.trim()}
               className={`flex items-center justify-center px-6 py-3 rounded-lg font-medium transition-colors ${
-                searching || generating || !query.trim()
+                isSearching || isGeneratingAnswer || !searchConfig.query.trim()
                   ? 'bg-gray-300 cursor-not-allowed'
                   : 'bg-green-600 hover:bg-green-700 text-white'
               }`}
             >
-              {generating ? (
+              {isGeneratingAnswer ? (
                 <>
                   <Clock className="w-5 h-5 mr-2 animate-spin" />
                   Generating...

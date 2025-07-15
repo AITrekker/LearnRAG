@@ -1,3 +1,21 @@
+"""
+Embedding Service - Core RAG Text-to-Vector Conversion System
+
+Teaching Purpose: This service demonstrates the fundamental concepts of RAG (Retrieval-Augmented Generation):
+
+1. TEXT → VECTORS: How neural networks convert human language into numerical representations
+2. SEMANTIC SIMILARITY: Why vectors enable "meaning-based" search instead of keyword matching  
+3. CHUNKING STRATEGIES: How to split documents for optimal retrieval vs context balance
+4. MODEL CACHING: Production patterns for managing AI models in memory and disk
+5. DELTA SYNC: Avoiding redundant work when files/settings haven't changed
+
+Key RAG Concepts Illustrated:
+- Embedding models transform text into high-dimensional vectors (384d-768d)
+- Similar meanings cluster together in vector space (cosine similarity)
+- Different chunking affects what information gets retrieved
+- Model choice affects speed vs quality trade-offs in production
+"""
+
 import os
 import asyncio
 import time
@@ -18,11 +36,27 @@ from utils import PathConfig, DatabaseUtils
 
 
 class EmbeddingService:
+    """
+    Core service for converting text documents into vector embeddings for RAG systems.
+    
+    Teaching Concepts:
+    - Model lifecycle management (download → cache → load → inference)
+    - Memory vs disk caching strategies for production systems
+    - Batch processing for efficient GPU/CPU utilization
+    - Delta sync to avoid redundant processing
+    """
+    
     def __init__(self):
+        # Production Pattern: Persistent model cache to survive container restarts
         self.models_cache_dir = PathConfig.MODELS_CACHE
         self.models_cache_dir.mkdir(exist_ok=True)
+        
         self.file_processor = FileProcessor()
-        self._loaded_models = {}  # In-memory cache
+        
+        # Performance Pattern: In-memory cache for active models
+        # Avoids reloading models from disk on every request
+        self._loaded_models = {}  # model_name → SentenceTransformer instance
+        
         self.metrics_service = MetricsService()
 
     async def generate_embeddings_for_files(
@@ -35,7 +69,25 @@ class EmbeddingService:
         chunk_overlap: int = 50,
         tenant_name: str = "Unknown"
     ):
-        """Generate embeddings for multiple files with metrics tracking"""
+        """
+        Generate vector embeddings for multiple files - Core RAG Pipeline Entry Point
+        
+        Teaching Flow:
+        1. Load neural network model (download if needed, cache for reuse)
+        2. For each file: extract text → chunk → embed → store vectors
+        3. Track metrics for learning about processing efficiency
+        
+        RAG Concepts:
+        - batch_size: Process multiple chunks together for GPU efficiency
+        - delta_sync: Skip files that haven't changed since last embedding
+        - model_caching: Avoid reloading multi-GB models on every request
+        - chunking_strategy: Different ways to split text affect retrieval quality
+        
+        Why This Matters:
+        - Text becomes searchable by meaning, not just keywords
+        - Chunks balance context (larger = more context) vs precision (smaller = more specific)
+        - Model choice affects speed vs quality in production systems
+        """
         # Start metrics session
         session_id = self.metrics_service.start_session(
             tenant_name, embedding_model, chunking_strategy, 
@@ -181,7 +233,26 @@ class EmbeddingService:
         return model
 
     async def _chunk_text(self, text: str, strategy: str, chunk_size: int = 512, overlap: int = 50) -> List[str]:
-        """Chunk text based on strategy"""
+        """
+        Split text into chunks for embedding generation - Critical RAG Design Decision
+        
+        Teaching Concepts:
+        WHY CHUNKING MATTERS:
+        - Large documents exceed model context windows (usually 512-2048 tokens)
+        - Smaller chunks = more precise retrieval but less context
+        - Larger chunks = more context but less precise matching
+        - Overlap preserves context across chunk boundaries
+        
+        STRATEGY TRADE-OFFS:
+        - fixed_size: Predictable performance, may break sentences
+        - sentence: Natural boundaries, variable chunk sizes  
+        - recursive: Smart fallbacks, handles diverse document structures
+        
+        PRODUCTION CONSIDERATIONS:
+        - chunk_size affects retrieval precision vs context richness
+        - overlap prevents important information from being split
+        - strategy choice depends on document type and use case
+        """
         if strategy == "fixed_size":
             return await self._fixed_size_chunking(text, chunk_size, overlap)
         elif strategy == "sentence":
@@ -197,7 +268,30 @@ class EmbeddingService:
         chunk_size: int = 512, 
         overlap: int = 50
     ) -> List[str]:
-        """Fixed size chunking with overlap"""
+        """
+        Fixed-size chunking with overlap - Simple and Predictable Strategy
+        
+        Teaching Concepts:
+        WHEN TO USE: Documents with consistent structure, performance-critical applications
+        
+        ALGORITHM:
+        1. Split text into words (simple tokenization)
+        2. Create chunks of exactly `chunk_size` words
+        3. Overlap chunks by `overlap` words to preserve context
+        
+        EXAMPLE with chunk_size=4, overlap=2:
+        Text: "The quick brown fox jumps over the lazy dog"
+        Chunk 1: "The quick brown fox"        (words 0-3)
+        Chunk 2: "brown fox jumps over"       (words 2-5, overlaps with chunk 1)
+        Chunk 3: "jumps over the lazy"       (words 4-7, overlaps with chunk 2)
+        Chunk 4: "the lazy dog"              (words 6-8, overlaps with chunk 3)
+        
+        TRADE-OFFS:
+        ✅ Predictable chunk sizes (good for performance tuning)
+        ✅ Simple implementation and debugging
+        ❌ May break sentences/paragraphs mid-thought
+        ❌ Less natural for human-readable content
+        """
         words = text.split()
         chunks = []
         
@@ -210,7 +304,30 @@ class EmbeddingService:
         return chunks
 
     async def _sentence_based_chunking(self, text: str, max_sentences: int = 3) -> List[str]:
-        """Sentence-based chunking with natural boundaries"""
+        """
+        Sentence-based chunking - Natural Language Boundaries Strategy
+        
+        Teaching Concepts:
+        WHEN TO USE: Human-readable documents, narrative content, articles
+        
+        ALGORITHM:
+        1. Split text at sentence boundaries (., !, ?)
+        2. Group `max_sentences` into each chunk
+        3. Preserve complete thoughts and natural flow
+        
+        EXAMPLE with max_sentences=2:
+        Text: "AI is transforming society. It enables new capabilities. However, it raises ethical concerns. We must proceed carefully."
+        Chunk 1: "AI is transforming society. It enables new capabilities."
+        Chunk 2: "However, it raises ethical concerns. We must proceed carefully."
+        
+        TRADE-OFFS:
+        ✅ Preserves complete thoughts and natural language flow
+        ✅ Better for human-readable content
+        ✅ Respects grammatical boundaries
+        ❌ Variable chunk sizes (harder to predict performance)
+        ❌ Some chunks may be very short or long
+        ❌ Sentence detection isn't perfect (abbreviations, etc.)
+        """
         import re
         
         # Split into sentences using regex
@@ -271,36 +388,60 @@ class EmbeddingService:
         return embedding.tolist()
 
     def get_available_models(self) -> List[Dict[str, Any]]:
-        """Get list of available embedding models"""
+        """
+        Available embedding models - The Neural Networks That Power RAG
+        
+        Teaching Concepts:
+        WHAT ARE EMBEDDING MODELS?
+        - Neural networks trained to convert text → high-dimensional vectors
+        - Similar meanings cluster together in vector space (semantic similarity)
+        - Different models optimized for different tasks and trade-offs
+        
+        KEY TRADE-OFFS:
+        - Dimensions: Higher = more nuanced but slower/more memory
+        - Speed: Smaller models faster for real-time applications  
+        - Quality: Larger models often better at capturing nuance
+        - Specialization: Some optimized for Q&A, others for general text
+        
+        PRODUCTION CONSIDERATIONS:
+        - Model size affects memory usage and inference speed
+        - Vector dimensions must match throughout the system
+        - Language support varies (multilingual vs English-only)
+        """
         return [
             {
                 "name": "sentence-transformers/all-MiniLM-L6-v2",
-                "description": "Lightweight, fast model (384 dimensions)",
+                "description": "🚀 Default: Lightweight, fast model (384 dimensions)",
                 "dimension": 384,
-                "default": True
+                "default": True,
+                "use_case": "General purpose, good speed/quality balance"
             },
             {
-                "name": "sentence-transformers/all-mpnet-base-v2",
-                "description": "Higher quality, slower (768 dimensions)",
+                "name": "sentence-transformers/all-mpnet-base-v2", 
+                "description": "🎯 Premium: Higher quality, slower (768 dimensions)",
                 "dimension": 768,
-                "default": False
+                "default": False,
+                "use_case": "Best quality when speed is less critical"
             },
             {
                 "name": "BAAI/bge-small-en-v1.5",
-                "description": "Recent, good performance (384 dimensions)",
+                "description": "⭐ Modern: Recent, good performance (384 dimensions)",
                 "dimension": 384,
-                "default": False
+                "default": False,
+                "use_case": "State-of-the-art efficiency and quality"
             },
             {
                 "name": "sentence-transformers/multi-qa-MiniLM-L6-cos-v1",
-                "description": "Optimized for Q&A (384 dimensions)",
+                "description": "❓ Q&A Specialist: Optimized for questions (384 dimensions)",
                 "dimension": 384,
-                "default": False
+                "default": False,
+                "use_case": "Question-answering and FAQ systems"
             },
             {
                 "name": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
-                "description": "Multilingual support (384 dimensions)",
+                "description": "🌍 Global: Multilingual support (384 dimensions)",
                 "dimension": 384,
-                "default": False
+                "default": False,
+                "use_case": "Non-English content and cross-language search"
             }
         ]

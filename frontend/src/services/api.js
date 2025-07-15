@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { parseApiError, logError } from '../utils/errorHandling';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
@@ -43,17 +44,25 @@ class ApiService {
       return config;
     });
 
-    // Add response interceptor for error handling
+    // Add response interceptor for standardized error handling
     this.client.interceptors.response.use(
       (response) => response,
       (error) => {
-        console.error('API Error:', error);
-        if (error.response?.status === 401) {
-          console.log('Unauthorized, clearing API key');
+        // Parse and log error using standardized utilities
+        const parsedError = parseApiError(error);
+        logError(error, { 
+          url: error.config?.url,
+          method: error.config?.method,
+          timestamp: new Date().toISOString()
+        });
+        
+        // Handle authentication errors by clearing stored credentials
+        if (parsedError.error_type === 'auth') {
           localStorage.removeItem('apiKey');
           localStorage.removeItem('selectedTenant');
           window.location.reload();
         }
+        
         return Promise.reject(error);
       }
     );
