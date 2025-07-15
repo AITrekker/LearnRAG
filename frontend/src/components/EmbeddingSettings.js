@@ -5,6 +5,7 @@ import { Settings, Save, RotateCcw, X } from 'lucide-react';
 import apiService from '../services/api';
 import { useErrorHandler } from '../hooks/useErrorHandler';
 import ErrorNotification from './ErrorNotification';
+import { DEFAULTS } from '../config';
 
 /**
  * EmbeddingSettings Component
@@ -27,8 +28,8 @@ const EmbeddingSettings = ({
   const [settingsForm, setSettingsForm] = useState({
     embedding_model: '',
     chunking_strategy: '',
-    chunk_size: 512,
-    chunk_overlap: 50
+    chunk_size: DEFAULTS.CHUNK_SIZE,
+    chunk_overlap: DEFAULTS.CHUNK_OVERLAP
   });
 
   // Load current settings into form
@@ -37,8 +38,8 @@ const EmbeddingSettings = ({
       setSettingsForm({
         embedding_model: settings.embedding_model || '',
         chunking_strategy: settings.chunking_strategy || '',
-        chunk_size: settings.chunk_size || 512,
-        chunk_overlap: settings.chunk_overlap || 50
+        chunk_size: settings.chunk_size || DEFAULTS.CHUNK_SIZE,
+        chunk_overlap: settings.chunk_overlap || DEFAULTS.CHUNK_OVERLAP
       });
     }
   }, [settings]);
@@ -68,10 +69,10 @@ const EmbeddingSettings = ({
 
   const resetToDefaults = () => {
     setSettingsForm({
-      embedding_model: 'sentence-transformers/all-MiniLM-L6-v2',
-      chunking_strategy: 'fixed_size',
-      chunk_size: 512,
-      chunk_overlap: 50
+      embedding_model: DEFAULTS.EMBEDDING_MODEL,
+      chunking_strategy: DEFAULTS.CHUNKING_STRATEGY,
+      chunk_size: DEFAULTS.CHUNK_SIZE,
+      chunk_overlap: DEFAULTS.CHUNK_OVERLAP
     });
   };
 
@@ -128,10 +129,11 @@ const EmbeddingSettings = ({
                   embedding_model: e.target.value
                 }))}
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                style={{ paddingRight: '48px' }}
               >
                 {models?.models?.map(model => (
                   <option key={model.name} value={model.name}>
-                    {model.name} ({model.dimension}d)
+                    {model.name} ({model.dimension}d) - {model.description}
                   </option>
                 ))}
               </select>
@@ -149,6 +151,7 @@ const EmbeddingSettings = ({
                   chunking_strategy: e.target.value
                 }))}
                 className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                style={{ paddingRight: '48px' }}
               >
                 {strategies?.strategies?.map(strategy => (
                   <option key={strategy.name} value={strategy.name}>

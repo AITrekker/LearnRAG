@@ -110,11 +110,11 @@ const Search = ({ apiKey }) => {
             <select
               value={searchConfig.embedding_model}
               onChange={(e) => updateConfig({ embedding_model: e.target.value })}
-              className="w-full p-2 border border-gray-300 rounded-lg text-sm"
+              className="w-full p-2 pr-8 border border-gray-300 rounded-lg text-sm"
             >
               {models?.models?.map((model) => (
                 <option key={model.name} value={model.name}>
-                  {model.name.split('/').pop()}
+                  {model.name.split('/').pop()} ({model.dimension}d) - {model.description}
                 </option>
               ))}
             </select>
@@ -126,7 +126,7 @@ const Search = ({ apiKey }) => {
             <select
               value={searchConfig.chunking_strategy}
               onChange={(e) => updateConfig({ chunking_strategy: e.target.value })}
-              className="w-full p-2 border border-gray-300 rounded-lg text-sm"
+              className="w-full p-2 pr-8 border border-gray-300 rounded-lg text-sm"
             >
               {chunkingStrategies.map((strategy) => (
                 <option key={strategy.value} value={strategy.value}>
@@ -142,7 +142,7 @@ const Search = ({ apiKey }) => {
             <select
               value={searchConfig.rag_technique}
               onChange={(e) => updateConfig({ rag_technique: e.target.value })}
-              className="w-full p-2 border border-gray-300 rounded-lg text-sm"
+              className="w-full p-2 pr-8 border border-gray-300 rounded-lg text-sm"
             >
               {techniques?.techniques?.map((technique) => (
                 <option key={technique.name} value={technique.name}>
@@ -158,7 +158,7 @@ const Search = ({ apiKey }) => {
             <select
               value={searchConfig.top_k}
               onChange={(e) => updateConfig({ top_k: Number(e.target.value) })}
-              className="w-full p-2 border border-gray-300 rounded-lg text-sm"
+              className="w-full p-2 pr-8 border border-gray-300 rounded-lg text-sm"
             >
               {[3, 5, 10, 15, 20].map((k) => (
                 <option key={k} value={k}>{k} results</option>

@@ -160,11 +160,14 @@ Answer:"""
             
             # Create prompt
             prompt = self._create_prompt(query, chunks)
+            logger.info(f"Generated prompt: {prompt[:200]}...")
             
             # Run inference in thread pool to avoid blocking
             answer = await asyncio.get_event_loop().run_in_executor(
                 None, self._generate_sync, prompt, max_length
             )
+            
+            logger.info(f"Generated answer: {answer}")
             
             # Calculate confidence
             confidence = self._calculate_confidence(answer, chunks)
@@ -202,28 +205,68 @@ Answer:"""
                 return_tensors="pt"
             ).to(self.device)
             
-            # Generate answer
+            # Generate answer with better parameters for T5
             with torch.no_grad():
                 outputs = self.model.generate(
                     inputs.input_ids,
                     max_length=max_length,
                     num_return_sequences=1,
-                    temperature=0.7,
+                    temperature=0.3,  # Lower temperature for more focused answers
                     do_sample=True,
-                    pad_token_id=self.tokenizer.pad_token_id
+                    top_p=0.9,  # Use nucleus sampling
+                    repetition_penalty=1.1,  # Prevent repetition
+                    pad_token_id=self.tokenizer.pad_token_id,
+                    early_stopping=True
                 )
             
-            # Decode answer
+            # Decode answer - T5 models return only the generated part
             answer = self.tokenizer.decode(outputs[0], skip_special_tokens=True)
             
-            # Clean up answer
+            # Clean up answer and remove any artifacts
             answer = answer.strip()
+            
+            # Remove any remaining prompt artifacts
+            if "Answer:" in answer:
+                answer = answer.split("Answer:")[-1].strip()
+            
+            # Ensure we have a meaningful answer
+            if not answer or len(answer) < 3:
+                answer = "I don't have enough information to answer this question."
             
             return answer
             
         except Exception as e:
             logger.error(f"Error in synchronous generation: {e}")
             return "Error generating answer. Please try again."
+    
+    def _create_prompt(self, query: str, chunks: List[SearchResult]) -> str:
+        """
+        Create a prompt for the LLM using the query and retrieved chunks
+        
+        Args:
+            query: User's question
+            chunks: Retrieved chunks from vector search
+            
+        Returns:
+            Formatted prompt string
+        """
+        # Build context from chunks
+        context_parts = []
+        for i, chunk in enumerate(chunks[:5]):  # Limit to top 5 chunks
+            context_parts.append(f"Context {i+1}: {chunk.chunk_text}")
+        
+        context = "\n\n".join(context_parts)
+        
+        # Create the prompt - T5 models work better with direct instructions
+        prompt = f"""Question: {query}
+
+Context: {context}
+
+Based on the context above, provide a direct answer to the question. If the context doesn't contain the answer, say "I don't have enough information."
+
+Answer:"""
+        
+        return prompt
     
     def get_available_models(self) -> List[Dict[str, Any]]:
         """Get list of available LLM models"""
