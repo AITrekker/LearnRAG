@@ -7,7 +7,7 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 
 # SQLAlchemy imports
-from sqlalchemy import Column, Integer, String, Text, DateTime, BigInteger, ForeignKey, UniqueConstraint
+from sqlalchemy import Column, Integer, String, Text, DateTime, BigInteger, ForeignKey, UniqueConstraint, Float
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from sqlalchemy.dialects.postgresql import JSONB
@@ -89,9 +89,7 @@ class RagSession(Base):
     query = Column(Text, nullable=False)
     results = Column(JSONB, nullable=False)
     answer = Column(Text)
-    confidence = Column(String)
     answer_model = Column(String(100))
-    generation_time = Column(String(10))
     created_at = Column(DateTime, default=func.now())
     
     tenant = relationship("Tenant", back_populates="rag_sessions")
@@ -169,9 +167,11 @@ class EmbeddingStatus(BaseModel):
 class GeneralEmbeddingStatus(BaseModel):
     total_files: int
     files_with_embeddings: int
+    files_without_embeddings: int
     total_chunks: int
-    embedding_model: Optional[str] = Field(None)
-    chunking_strategy: Optional[str] = Field(None)
+    available_models: List[str] = Field(default_factory=list)
+    available_strategies: List[str] = Field(default_factory=list)
+    last_updated: Optional[datetime] = Field(None)
 
 # Tenant models 
 class TenantInfo(BaseModel):

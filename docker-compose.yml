@@ -26,7 +26,7 @@ services:
       HF_HOME: /root/.cache/huggingface
       TRANSFORMERS_CACHE: /root/.cache/transformers
     volumes:
-      - ./demo_data:/app/demo_data:ro
+      - ./setup:/app/setup:ro
       - ./data/files:/app/internal_files
       - ./cache/models:/app/models_cache
       - ./cache/huggingface:/root/.cache/huggingface
@@ -35,6 +35,11 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     deploy:
       resources:
         reservations:
@@ -57,7 +62,8 @@ services:
     volumes:
       - .:/app/output:rw
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     develop:
       watch:
         - action: sync

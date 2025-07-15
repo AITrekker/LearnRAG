@@ -44,18 +44,14 @@ async def get_tenant_info(
 
 @router.post("/sync-files")
 async def sync_files(
+    source: str = "data",
     force: bool = False,
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db)
 ):
-    """Sync files from demo_data for current tenant"""
+    """Sync files for current tenant (source: 'data' for runtime sync, 'setup' for initial seeding)"""
     tenant_service = TenantService()
-    if force:
-        # Force re-sync all files
-        result = await tenant_service.sync_tenant_files(tenant.slug, db)
-    else:
-        # Only sync new/changed files (delta sync)
-        result = await tenant_service.sync_tenant_files(tenant.slug, db)
+    result = await tenant_service.sync_tenant_files(tenant.slug, db, source)
     return result
 
 

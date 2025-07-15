@@ -13,7 +13,7 @@ from services.tenant_service import TenantService
 async def lifespan(app: FastAPI):
     # Startup
     await init_db()
-    # Auto-discover tenants from demo_data
+    # Auto-discover tenants from setup
     tenant_service = TenantService()
     await tenant_service.auto_discover_tenants()
     

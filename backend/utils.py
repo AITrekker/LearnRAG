@@ -12,7 +12,7 @@ from models import Tenant
 class PathConfig:
     """Centralized path configuration"""
     INTERNAL_FILES = Path("/app/internal_files")
-    DEMO_DATA = Path("/app/demo_data") 
+    DEMO_DATA = Path("/app/setup") 
     MODELS_CACHE = Path("/app/models_cache")
     OUTPUT = Path("/app/output")
 

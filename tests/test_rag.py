@@ -134,6 +134,39 @@ class RagTests:
         
         return result
 
+    def test_answer_generation(self) -> Dict[str, Any]:
+        """Test RAG answer generation endpoint"""
+        # Test answer generation with minimal payload
+        answer_payload = {
+            "query": "What is this document about?",
+            "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
+            "chunking_strategy": "fixed_size",
+            "top_k": 3
+        }
+        response = self.session.post(f"{self.base_url}/api/rag/answer", json=answer_payload, timeout=15)
+        
+        result = {
+            "test_name": "answer_generation",
+            "status_code": response.status_code,
+            "success": response.status_code in [200, 400],  # 400 OK if no embeddings exist
+            "endpoint": "/api/rag/answer",
+            "method": "POST"
+        }
+        
+        if response.status_code == 200:
+            data = response.json()
+            result["data"] = data
+            # Validate response structure
+            expected_fields = ["query", "answer", "confidence", "sources", "generation_time", "model_used"]
+            result["has_required_fields"] = all(field in data for field in expected_fields)
+            result["source_count"] = len(data.get("sources", []))
+            result["success"] = result["success"] and result["has_required_fields"]
+        elif response.status_code == 400:
+            # Likely no embeddings available for answer generation
+            result["likely_no_embeddings"] = True
+        
+        return result
+
     def run_all_tests(self) -> list:
         """Run all RAG tests"""
         tests = [
@@ -141,7 +174,8 @@ class RagTests:
             self.test_get_rag_sessions,
             self.test_search_validation,
             self.test_search_with_minimal_data,
-            self.test_get_compare_placeholder
+            self.test_get_compare_placeholder,
+            self.test_answer_generation
         ]
         
         results = []

@@ -8,7 +8,7 @@ from typing import List, Dict, Any
 import secrets
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, delete
 
 from database import AsyncSessionLocal
 from models import Tenant, File, TenantEmbeddingSettings
@@ -22,7 +22,7 @@ class TenantService:
         self.internal_files_dir.mkdir(exist_ok=True)
 
     async def auto_discover_tenants(self):
-        """Auto-discover tenants from demo_data directory - only if database is empty"""
+        """Auto-discover tenants from setup directory - only if database is empty"""
         async with AsyncSessionLocal() as db:
             # Check if database already has tenants
             tenant_count = await self._get_tenant_count(db)
@@ -43,7 +43,7 @@ class TenantService:
     async def _discover_and_create_tenants(self, db: AsyncSession):
         """Discover tenant folders and create tenants"""
         if not self.demo_data_dir.exists():
-            print(f"Demo data directory {self.demo_data_dir} does not exist")
+            print(f"Setup directory {self.demo_data_dir} does not exist")
             return
 
         tenant_folders = [
@@ -52,7 +52,7 @@ class TenantService:
         ]
 
         if not tenant_folders:
-            print("No tenant folders found in demo_data directory")
+            print("No tenant folders found in setup directory")
             return
 
         for folder in tenant_folders:
@@ -116,8 +116,8 @@ class TenantService:
             db.add(default_settings)
             print(f"Created tenant: {slug} with API key: {api_key}")
             
-            # Always sync files for new tenants
-            await self.sync_tenant_files(slug, db)
+            # Always seed files from setup folder for new tenants
+            await self.sync_tenant_files(slug, db, "setup")
         elif force_sync:
             # Only sync files for existing tenants if explicitly requested
             print(f"Force syncing files for existing tenant: {slug}")
@@ -131,11 +131,21 @@ class TenantService:
         """Generate a secure API key"""
         return f"lr_{secrets.token_urlsafe(32)}"
 
-    async def sync_tenant_files(self, tenant_slug: str, db: AsyncSession) -> Dict[str, Any]:
-        """Sync files for a specific tenant"""
-        tenant_folder = self.demo_data_dir / tenant_slug
-        if not tenant_folder.exists():
-            return {"error": f"Tenant folder {tenant_slug} not found"}
+
+    async def sync_tenant_files(self, tenant_slug: str, db: AsyncSession, source_folder: str = "data") -> Dict[str, Any]:
+        """Sync files from specified folder (setup for seeding, data for runtime sync)"""
+        if source_folder == "setup":
+            source_dir = self.demo_data_dir / tenant_slug
+            target_dir = self.internal_files_dir / tenant_slug
+            target_dir.mkdir(exist_ok=True)
+            copy_files = True
+        else:
+            source_dir = self.internal_files_dir / tenant_slug
+            target_dir = source_dir
+            copy_files = False
+            
+        if not source_dir.exists():
+            return {"error": f"{source_folder.title()} folder for tenant {tenant_slug} not found"}
 
         # Get tenant
         result = await db.execute(select(Tenant).where(Tenant.slug == tenant_slug))
@@ -143,23 +153,43 @@ class TenantService:
         if not tenant:
             return {"error": f"Tenant {tenant_slug} not found in database"}
 
-        # Create tenant internal directory
-        tenant_internal_dir = self.internal_files_dir / tenant_slug
-        tenant_internal_dir.mkdir(exist_ok=True)
-
         processed_files = 0
         new_files = 0
         updated_files = 0
+        deleted_files = 0
 
-        # Process all files in tenant folder
-        for file_path in tenant_folder.rglob("*"):
+        # Get current files in source folder
+        source_files = {}
+        for file_path in source_dir.rglob("*"):
             if file_path.is_file() and not file_path.name.startswith('.'):
-                result = await self._process_file(file_path, tenant, tenant_internal_dir, db)
-                if result["action"] == "new":
-                    new_files += 1
-                elif result["action"] == "updated":
+                relative_path = file_path.relative_to(source_dir)
+                source_files[str(relative_path)] = file_path
+
+        # Get current files in database
+        db_files_result = await db.execute(
+            select(File).where(File.tenant_id == tenant.id)
+        )
+        db_files = {file.file_path: file for file in db_files_result.scalars().all()}
+
+        # Process files in source folder
+        for relative_path_str, file_path in source_files.items():
+            if relative_path_str in db_files:
+                # File exists in both - check for updates
+                result = await self._process_existing_file(file_path, db_files[relative_path_str], db)
+                if result["action"] == "updated":
                     updated_files += 1
-                processed_files += 1
+            else:
+                # New file - add to database (no embeddings)
+                await self._process_new_file(file_path, tenant, target_dir, db, copy_files)
+                new_files += 1
+            processed_files += 1
+
+        # Handle deleted files (in DB but not in source folder) - only for data folder sync
+        if not copy_files:
+            for file_path, db_file in db_files.items():
+                if file_path not in source_files:
+                    await self._process_deleted_file(db_file, db)
+                    deleted_files += 1
 
         await db.commit()
 
@@ -167,65 +197,96 @@ class TenantService:
             "tenant": tenant_slug,
             "processed_files": processed_files,
             "new_files": new_files,
-            "updated_files": updated_files
+            "updated_files": updated_files,
+            "deleted_files": deleted_files
         }
 
-    async def _process_file(
-        self, 
-        file_path: Path, 
-        tenant: Tenant, 
-        tenant_internal_dir: Path, 
-        db: AsyncSession
-    ) -> Dict[str, str]:
-        """Process a single file"""
-        # Calculate file hash
+
+    async def _process_existing_file(self, file_path: Path, db_file: File, db: AsyncSession) -> Dict[str, str]:
+        """Process a file that exists in both data folder and database"""
+        # Calculate current file hash
         file_hash = self._calculate_file_hash(file_path)
         file_size = file_path.stat().st_size
         last_modified = datetime.fromtimestamp(file_path.stat().st_mtime)
         
-        # Relative path within tenant folder
-        relative_path = file_path.relative_to(self.demo_data_dir / tenant.slug)
-        
-        # Check if file exists in database
-        result = await db.execute(
-            select(File).where(
-                File.tenant_id == tenant.id,
-                File.file_path == str(relative_path)
-            )
-        )
-        existing_file = result.scalar_one_or_none()
-
-        # Determine content type
-        content_type = self._get_content_type(file_path)
-
-        # Copy file to internal storage
-        internal_file_path = tenant_internal_dir / relative_path
-        internal_file_path.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(file_path, internal_file_path)
-
-        if existing_file:
-            # Check if file has changed
-            if existing_file.file_hash != file_hash or existing_file.last_modified != last_modified:
-                # Update existing file
-                existing_file.file_hash = file_hash
-                existing_file.file_size = file_size
-                existing_file.last_modified = last_modified
-                return {"action": "updated"}
-            else:
-                return {"action": "unchanged"}
+        # Check if file has changed
+        if db_file.file_hash != file_hash or db_file.last_modified != last_modified:
+            # File has been updated - clean up old embeddings
+            await self._cleanup_embeddings_for_file(db_file.id, db)
+            
+            # Update file record
+            db_file.file_hash = file_hash
+            db_file.file_size = file_size
+            db_file.last_modified = last_modified
+            db_file.content_type = self._get_content_type(file_path)
+            
+            return {"action": "updated"}
         else:
-            # Create new file record
-            new_file = File(
-                tenant_id=tenant.id,
-                filename=file_path.name,
-                file_path=str(relative_path),
-                file_hash=file_hash,
-                file_size=file_size,
-                content_type=content_type,
-                last_modified=last_modified
+            return {"action": "unchanged"}
+    
+    async def _process_new_file(self, file_path: Path, tenant: Tenant, target_dir: Path, db: AsyncSession, copy_file: bool = False) -> Dict[str, str]:
+        """Process a new file found in source folder"""
+        # Calculate file metadata
+        file_hash = self._calculate_file_hash(file_path)
+        file_size = file_path.stat().st_size
+        last_modified = datetime.fromtimestamp(file_path.stat().st_mtime)
+        if copy_file:
+            # For setup -> data copy, get relative path from setup folder
+            relative_path = file_path.relative_to(self.demo_data_dir / tenant.slug)
+        else:
+            # For data folder sync, get relative path from data folder
+            relative_path = file_path.relative_to(target_dir)
+        
+        # Copy file if needed (setup -> data)
+        if copy_file:
+            target_file_path = target_dir / relative_path
+            target_file_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(file_path, target_file_path)
+        content_type = self._get_content_type(file_path)
+        
+        # Create new file record (no embeddings generated)
+        new_file = File(
+            tenant_id=tenant.id,
+            filename=file_path.name,
+            file_path=str(relative_path),
+            file_hash=file_hash,
+            file_size=file_size,
+            content_type=content_type,
+            last_modified=last_modified
+        )
+        db.add(new_file)
+        
+        return {"action": "new"}
+    
+    async def _process_deleted_file(self, db_file: File, db: AsyncSession) -> Dict[str, str]:
+        """Process a file that was deleted from data folder"""
+        # Clean up embeddings
+        await self._cleanup_embeddings_for_file(db_file.id, db)
+        
+        # Remove file record
+        db.delete(db_file)
+        
+        return {"action": "deleted"}
+    
+    async def _cleanup_embeddings_for_file(self, file_id: int, db: AsyncSession) -> int:
+        """Delete all embeddings for a specific file"""
+        from models import Embedding
+        from sqlalchemy import delete
+        
+        # Count embeddings before deletion for logging
+        count_result = await db.execute(
+            select(func.count(Embedding.id)).where(Embedding.file_id == file_id)
+        )
+        embedding_count = count_result.scalar() or 0
+        
+        # Delete all embeddings for this file
+        if embedding_count > 0:
+            await db.execute(
+                delete(Embedding).where(Embedding.file_id == file_id)
             )
-            db.add(new_file)
-            return {"action": "new"}
+            print(f"Deleted {embedding_count} embeddings for file_id {file_id}")
+        
+        return embedding_count
 
     def _calculate_file_hash(self, file_path: Path) -> str:
         """Calculate SHA-256 hash of file"""

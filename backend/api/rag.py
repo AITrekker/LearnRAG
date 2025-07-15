@@ -121,9 +121,7 @@ async def generate_answer(
         query=request.query,
         results=[result.dict() for result in filtered_results],
         answer=answer_data["answer"],
-        confidence=str(answer_data["confidence"]),
-        answer_model=answer_data["model_used"],
-        generation_time=str(answer_data["generation_time"])
+        answer_model=answer_data["model_used"]
     )
     db.add(session)
     await db.commit()
