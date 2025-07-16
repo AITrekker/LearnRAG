@@ -123,7 +123,7 @@ const Search = ({ apiKey }) => {
         >
           {techniques?.techniques?.map((technique) => (
             <option key={technique.name} value={technique.name}>
-              {technique.name.replace('_', ' ')}
+              {technique.name.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())} - {technique.description}
             </option>
           ))}
         </select>

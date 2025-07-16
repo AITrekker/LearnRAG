@@ -236,6 +236,7 @@ async def update_embedding_settings(
             settings.chunk_size != settings_update.chunk_size or
             settings.chunk_overlap != settings_update.chunk_overlap
         )
+        # Note: enable_content_filter doesn't require re-embedding, so not checked here
     
     # If settings changed, delete all existing embeddings for this tenant
     if settings_changed:
@@ -255,6 +256,7 @@ async def update_embedding_settings(
         settings.chunking_strategy = settings_update.chunking_strategy
         settings.chunk_size = settings_update.chunk_size
         settings.chunk_overlap = settings_update.chunk_overlap
+        settings.enable_content_filter = settings_update.enable_content_filter
     else:
         # Create new settings
         settings = TenantEmbeddingSettings(
@@ -262,7 +264,8 @@ async def update_embedding_settings(
             embedding_model=settings_update.embedding_model,
             chunking_strategy=settings_update.chunking_strategy,
             chunk_size=settings_update.chunk_size,
-            chunk_overlap=settings_update.chunk_overlap
+            chunk_overlap=settings_update.chunk_overlap,
+            enable_content_filter=settings_update.enable_content_filter
         )
         db.add(settings)
     

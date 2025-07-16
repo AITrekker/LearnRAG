@@ -144,6 +144,58 @@ class RagService:
 
         return search_results
 
+    async def keyword_search(
+        self,
+        query: str,
+        tenant_id: int,
+        embedding_model: str,
+        chunking_strategy: str,
+        top_k: int,
+        db: AsyncSession
+    ) -> List[SearchResult]:
+        """Simple PostgreSQL full-text search for keyword matching"""
+        
+        sql_query = text("""
+            SELECT 
+                e.chunk_text,
+                e.chunk_index,
+                e.chunk_metadata,
+                f.id as file_id,
+                f.filename,
+                f.file_path,
+                ts_rank(to_tsvector('english', e.chunk_text), plainto_tsquery('english', :query)) as keyword_score
+            FROM embeddings e
+            JOIN files f ON e.file_id = f.id
+            WHERE f.tenant_id = :tenant_id
+            AND e.embedding_model = :embedding_model
+            AND e.chunking_strategy = :chunking_strategy
+            AND to_tsvector('english', e.chunk_text) @@ plainto_tsquery('english', :query)
+            ORDER BY ts_rank(to_tsvector('english', e.chunk_text), plainto_tsquery('english', :query)) DESC
+            LIMIT :top_k
+        """)
+
+        result = await db.execute(sql_query, {
+            "query": query,
+            "tenant_id": tenant_id,
+            "embedding_model": embedding_model,
+            "chunking_strategy": chunking_strategy,
+            "top_k": top_k
+        })
+
+        search_results = []
+        for row in result:
+            search_result = SearchResult(
+                chunk_text=row.chunk_text,
+                similarity=float(row.keyword_score),
+                file_name=row.filename,
+                file_path=row.file_path,
+                chunk_index=row.chunk_index,
+                chunk_metadata=row.chunk_metadata or {}
+            )
+            search_results.append(search_result)
+
+        return search_results
+
     async def hybrid_search(
         self,
         query: str,
@@ -155,11 +207,41 @@ class RagService:
         db: AsyncSession,
         semantic_weight: float = 0.7
     ) -> List[SearchResult]:
-        """Hybrid search combining semantic and keyword search (Future implementation)"""
-        # For Phase 1, just return similarity search
-        return await self.similarity_search(
+        """Simple hybrid search combining semantic and keyword results"""
+        
+        # Get results from both methods
+        semantic_results = await self.similarity_search(
             query_embedding, tenant_id, embedding_model, chunking_strategy, top_k, db
         )
+        
+        keyword_results = await self.keyword_search(
+            query, tenant_id, embedding_model, chunking_strategy, top_k, db
+        )
+        
+        # Simple combination: merge and deduplicate by chunk
+        seen_chunks = set()
+        combined_results = []
+        
+        # Add semantic results first (higher weight)
+        for result in semantic_results:
+            chunk_key = f"{result.file_path}_{result.chunk_index}"
+            if chunk_key not in seen_chunks:
+                result.similarity = semantic_weight * result.similarity
+                combined_results.append(result)
+                seen_chunks.add(chunk_key)
+        
+        # Add keyword results if not already seen
+        keyword_weight = 1.0 - semantic_weight
+        for result in keyword_results:
+            chunk_key = f"{result.file_path}_{result.chunk_index}"
+            if chunk_key not in seen_chunks:
+                result.similarity = keyword_weight * result.similarity
+                combined_results.append(result)
+                seen_chunks.add(chunk_key)
+        
+        # Sort by combined score and return top_k
+        combined_results.sort(key=lambda x: x.similarity, reverse=True)
+        return combined_results[:top_k]
 
     def get_available_techniques(self) -> List[dict]:
         """Get list of available RAG techniques"""
@@ -168,6 +250,10 @@ class RagService:
                 "name": "similarity_search",
                 "description": "Basic cosine similarity search using pgvector",
                 "default": True
+            },
+            {
+                "name": "hybrid_search",
+                "description": "Combines semantic similarity with keyword matching",
+                "default": False
             }
-            # Future techniques will be added here
         ]

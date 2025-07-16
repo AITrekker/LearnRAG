@@ -87,7 +87,7 @@ docker-compose -f docker-compose.windows.yml up --build
 ### **Step 3: Start Learning!**
 1. **📁 Dashboard**: Explore multi-tenant document collections
 2. **⚙️ Embeddings**: Configure models and generate vector embeddings
-3. **🔍 Search**: Experience semantic search vs keyword matching
+3. **🔍 Search**: Experience semantic search, keyword matching, AND hybrid search
 4. **🤖 RAG**: Generate AI answers using retrieved context
 
 ---
@@ -103,8 +103,9 @@ docker-compose -f docker-compose.windows.yml up --build
 ### **Intermediate (1 hour)**
 1. **Compare Embedding Models**: Speed vs quality trade-offs
 2. **Experiment with Chunking**: How document splitting affects retrieval
-3. **Analyze Similarity Scores**: Understanding relevance metrics
-4. **Optimize Parameters**: Fine-tune top-k, chunk size, overlap
+3. **Try Hybrid Search**: Compare semantic vs keyword vs combined approaches
+4. **Analyze Similarity Scores**: Understanding relevance metrics
+5. **Optimize Parameters**: Fine-tune top-k, chunk size, overlap, semantic weighting
 
 ### **Advanced (Half day)**
 1. **Multi-tenant Architecture**: Explore data isolation patterns
@@ -139,6 +140,10 @@ docker-compose -f docker-compose.windows.yml up --build
 - **Fixed Size**: Predictable performance, may break sentences
 - **Sentence-based**: Natural boundaries, variable sizes
 - **Recursive**: Smart fallbacks for diverse content
+
+**RAG Search Techniques:**
+- **Similarity Search**: Pure semantic search using vector embeddings (cosine distance)
+- **Hybrid Search**: Combines semantic similarity (70%) + keyword matching (30%) with intelligent deduplication
 
 ---
 
@@ -291,13 +296,32 @@ docker-compose -f docker-compose.windows.yml up --build
 
 ## 📊 **Status & Roadmap**
 
-### **Current Status: Production Ready** ✅
+### **Current Status: Phase 1+ Complete** ✅
 - **Phase 1**: ✅ Core RAG functionality with multi-tenancy
+- **Phase 1+**: ✅ **Hybrid Search Implementation** - Combines semantic similarity with keyword matching
 - **Phase 2**: ✅ Educational documentation and advanced UI patterns  
 - **Phase 3**: ✅ Performance optimization and production quality
 
+### **What's New: Hybrid Search** 🔬
+**Hybrid Search** combines the best of both worlds:
+- **Semantic Search**: Uses AI embeddings to find documents by meaning (great for concepts, paraphrases, synonyms)
+- **Keyword Search**: Uses PostgreSQL full-text search for exact term matching (great for names, technical terms, specific phrases)
+- **Smart Combination**: Weighted merge (70% semantic + 30% keyword) with deduplication
+- **When to Use**: When you need both conceptual understanding AND precise term matching
+
+**Example Benefits:**
+- Query: "password reset" → Finds docs about "authentication recovery", "login troubleshooting", AND "password reset"
+- Query: "Ahab" → Finds character references by name AND conceptual descriptions
+- Query: "financial performance" → Finds "revenue reports", "profit analysis", AND exact "financial performance" mentions
+
+### **Technical Implementation:**
+- **Backend**: PostgreSQL `to_tsvector` + `plainto_tsquery` for keyword search
+- **Combination**: Merge results with configurable semantic/keyword weighting
+- **Deduplication**: Intelligent chunk-level deduplication by file path + chunk index
+- **API**: Available via `rag_technique: "hybrid_search"` parameter
+
 ### **Upcoming Features** 🔮
-- **Advanced RAG Techniques**: Hybrid search, re-ranking, query expansion
+- **Advanced RAG Techniques**: Re-ranking, query expansion, contextual compression
 - **More File Formats**: Images, videos, structured data
 - **Analytics Dashboard**: Usage metrics and performance insights
 - **API Rate Limiting**: Production security features

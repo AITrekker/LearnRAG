@@ -24,20 +24,35 @@ async def search(
     """Perform RAG search"""
     rag_service = RagService()
     
-    # Generate query embedding
-    query_embedding = await rag_service.generate_query_embedding(
-        request.query, request.embedding_model
-    )
+    try:
+        # Generate query embedding
+        query_embedding = await rag_service.generate_query_embedding(
+            request.query, request.embedding_model
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
     
-    # Perform similarity search
-    search_results = await rag_service.similarity_search(
-        query_embedding,
-        tenant.id,
-        request.embedding_model,
-        request.chunking_strategy,
-        request.top_k,
-        db
-    )
+    # Perform search based on technique
+    if request.rag_technique == "hybrid_search":
+        search_results = await rag_service.hybrid_search(
+            request.query,
+            query_embedding,
+            tenant.id,
+            request.embedding_model,
+            request.chunking_strategy,
+            request.top_k,
+            db
+        )
+    else:
+        # Default to similarity search
+        search_results = await rag_service.similarity_search(
+            query_embedding,
+            tenant.id,
+            request.embedding_model,
+            request.chunking_strategy,
+            request.top_k,
+            db
+        )
     
     # Save search session
     session = RagSession(
@@ -64,14 +79,9 @@ async def search(
 @router.get("/techniques")
 async def get_rag_techniques():
     """Get list of available RAG techniques"""
+    rag_service = RagService()
     return {
-        "techniques": [
-            {
-                "name": "similarity_search",
-                "description": "Basic cosine similarity search",
-                "default": True
-            }
-        ]
+        "techniques": rag_service.get_available_techniques()
     }
 
 
@@ -85,9 +95,12 @@ async def generate_answer(
     rag_service = RagService()
     
     # Step 1: Generate query embedding and retrieve chunks
-    query_embedding = await rag_service.generate_query_embedding(
-        request.query, request.embedding_model
-    )
+    try:
+        query_embedding = await rag_service.generate_query_embedding(
+            request.query, request.embedding_model
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=422, detail=str(e))
     
     # Retrieve more chunks for better context
     search_results = await rag_service.similarity_search(
