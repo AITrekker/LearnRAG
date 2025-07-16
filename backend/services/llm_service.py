@@ -36,10 +36,15 @@ class LLMService:
         
     def _detect_device(self) -> str:
         """Detect best available device (GPU first, then CPU)"""
+        # Check for NVIDIA CUDA
         if torch.cuda.is_available():
             device = "cuda"
             gpu_name = torch.cuda.get_device_name(0)
-            logger.info(f"Using GPU: {gpu_name}")
+            logger.info(f"Using NVIDIA GPU: {gpu_name}")
+        # Check for Apple Silicon MPS (Metal Performance Shaders)
+        elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+            device = "mps"
+            logger.info("Using Apple Silicon GPU (MPS)")
         else:
             device = "cpu"
             logger.info("Using CPU for LLM inference")
@@ -67,7 +72,16 @@ class LLMService:
                     torch_dtype=torch.float32,  # Use full precision to avoid Half/Float issues
                     device_map="auto"
                 )
+            elif self.device == "mps":
+                # Apple Silicon MPS optimization
+                self.model = AutoModelForSeq2SeqLM.from_pretrained(
+                    model_name,
+                    torch_dtype=torch.float32,  # MPS works best with float32
+                    low_cpu_mem_usage=True
+                )
+                self.model.to(self.device)
             else:
+                # CPU fallback
                 self.model = AutoModelForSeq2SeqLM.from_pretrained(model_name)
                 self.model.to(self.device)
             
@@ -330,9 +344,11 @@ Answer:"""
             self.tokenizer = None
             self.model_name = None
             
-            # Clear GPU cache if using CUDA
+            # Clear GPU cache if using CUDA or MPS
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
+            elif hasattr(torch.backends, 'mps') and torch.backends.mps.is_available():
+                torch.mps.empty_cache()
                 
             logger.info("Model cleared from memory")
 
