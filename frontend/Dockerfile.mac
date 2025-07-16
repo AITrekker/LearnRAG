@@ -1,0 +1,46 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copy package files first for better Docker layer caching
+COPY package*.json ./
+
+# Install dependencies
+RUN npm install
+
+# Copy source code
+COPY . .
+
+# Mac-specific fixes for file permissions and React
+RUN apk add --no-cache dos2unix && \
+    find . -type f -name "*.sh" -exec dos2unix {} \; && \
+    find . -type f -name "*.sh" -exec chmod +x {} \; && \
+    chmod -R 755 public/ && \
+    chmod 644 public/index.html && \
+    chown -R node:node /app
+
+# Switch to non-root user (helps with Mac permission issues)
+USER node
+
+# Verify files as node user
+RUN ls -la public/index.html
+
+# Create simplified startup
+RUN echo '#!/bin/sh' > /app/start-mac.sh && \
+    echo 'echo "LearnRAG Frontend starting on Mac..."' >> /app/start-mac.sh && \
+    echo 'echo "Files in public/:"' >> /app/start-mac.sh && \
+    echo 'ls -la public/' >> /app/start-mac.sh && \
+    echo 'if [ ! -f public/index.html ]; then' >> /app/start-mac.sh && \
+    echo '  echo "Creating minimal index.html..."' >> /app/start-mac.sh && \
+    echo '  cat > public/index.html << EOF' >> /app/start-mac.sh && \
+    echo '<!DOCTYPE html>' >> /app/start-mac.sh && \
+    echo '<html><head><title>LearnRAG</title></head>' >> /app/start-mac.sh && \
+    echo '<body><div id="root"></div></body></html>' >> /app/start-mac.sh && \
+    echo 'EOF' >> /app/start-mac.sh && \
+    echo 'fi' >> /app/start-mac.sh && \
+    echo 'npm start' >> /app/start-mac.sh && \
+    chmod +x /app/start-mac.sh
+
+EXPOSE 3000
+
+CMD ["/app/start-mac.sh"]

@@ -1,0 +1,59 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: learnrag
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    env_file:
+      - .env
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      - ./setup:/app/setup:ro
+      - ./data/files:/app/internal_files
+      - ./cache/models:/app/models_cache
+      - ./output:/app/output
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.mac  # Mac-specific Dockerfile
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    volumes:
+      - ./output/frontend:/app/output/frontend
+      - /app/node_modules  # Prevent node_modules volume mount issues on Mac
+    depends_on:
+      - backend
+    environment:
+      - WATCHPACK_POLLING=true  # Fix hot reload on Mac
+      - CHOKIDAR_USEPOLLING=true
+
+volumes:
+  postgres_data:
