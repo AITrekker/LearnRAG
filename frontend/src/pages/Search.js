@@ -17,14 +17,21 @@
  * - LLM takes retrieved chunks and generates human-readable answers
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useQuery } from 'react-query';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search as SearchIcon, Clock, Target, FileText, BarChart3, Brain, Database } from 'lucide-react';
+import { Search as SearchIcon, Clock, Target, FileText, BarChart3, Brain, Database, Settings, ChevronDown, ChevronUp } from 'lucide-react';
 import { useRagSearch } from '../hooks/useRagSearch';
 import ErrorNotification from '../components/ErrorNotification';
+import { DEFAULTS } from '../config';
 
 const Search = ({ apiKey }) => {
+  // UI Layout state
+  const [layoutMode, setLayoutMode] = useState('split'); // 'split', 'tabbed', 'expandable'
+  const [activeTab, setActiveTab] = useState('retrieval'); // 'retrieval', 'generation'
+  const [retrievalExpanded, setRetrievalExpanded] = useState(true);
+  const [generationExpanded, setGenerationExpanded] = useState(false);
+  
   // Use custom RAG search hook for improved state management
   const {
     searchConfig,
@@ -57,10 +64,152 @@ const Search = ({ apiKey }) => {
     },
     { enabled: !!apiKey }
   );
+  
+  const { data: llmModels } = useQuery(
+    'llmModels',
+    async () => {
+      const apiService = (await import('../services/api')).default;
+      return apiService.getLlmModels();
+    },
+    { enabled: !!apiKey }
+  );
 
   const chunkingStrategies = [
     { value: 'fixed_size', label: 'Fixed Size', description: '512 tokens with 50 token overlap' }
   ];
+  
+  // Render retrieval settings
+  const renderRetrievalSettings = () => (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Model Selection */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Embedding Model</label>
+        <select
+          value={searchConfig.embedding_model}
+          onChange={(e) => updateConfig({ embedding_model: e.target.value })}
+          className="w-full p-2 pr-8 border border-gray-300 rounded-lg text-sm"
+        >
+          {models?.models?.map((model) => (
+            <option key={model.name} value={model.name}>
+              {model.name.split('/').pop()} ({model.dimension}d) - {model.description}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Chunking Strategy */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Chunking Strategy</label>
+        <select
+          value={searchConfig.chunking_strategy}
+          onChange={(e) => updateConfig({ chunking_strategy: e.target.value })}
+          className="w-full p-2 pr-8 border border-gray-300 rounded-lg text-sm"
+        >
+          {chunkingStrategies.map((strategy) => (
+            <option key={strategy.value} value={strategy.value}>
+              {strategy.label}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* RAG Technique */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">RAG Technique</label>
+        <select
+          value={searchConfig.rag_technique}
+          onChange={(e) => updateConfig({ rag_technique: e.target.value })}
+          className="w-full p-2 pr-8 border border-gray-300 rounded-lg text-sm"
+        >
+          {techniques?.techniques?.map((technique) => (
+            <option key={technique.name} value={technique.name}>
+              {technique.name.replace('_', ' ')}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Top K Results */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Top K</label>
+        <select
+          value={searchConfig.top_k}
+          onChange={(e) => updateConfig({ top_k: Number(e.target.value) })}
+          className="w-full p-2 pr-8 border border-gray-300 rounded-lg text-sm"
+        >
+          {[3, 5, 10, 15, 20].map((k) => (
+            <option key={k} value={k}>{k} results</option>
+          ))}
+        </select>
+      </div>
+    </div>
+  );
+  
+  // Render generation settings
+  const renderGenerationSettings = () => (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* LLM Model Selection */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">LLM Model</label>
+        <select
+          value={searchConfig.answer_model || DEFAULTS.LLM_MODEL}
+          onChange={(e) => updateConfig({ answer_model: e.target.value })}
+          className="w-full p-2 pr-8 border border-gray-300 rounded-lg text-sm"
+        >
+          {llmModels?.models?.map((model) => (
+            <option key={model.name} value={model.name}>
+              {model.name.split('/').pop()} - {model.description}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Temperature */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">
+          Temperature ({searchConfig.temperature || DEFAULTS.GENERATION_TEMPERATURE})
+        </label>
+        <input
+          type="range"
+          min="0.1"
+          max="1.0"
+          step="0.1"
+          value={searchConfig.temperature || DEFAULTS.GENERATION_TEMPERATURE}
+          onChange={(e) => updateConfig({ temperature: parseFloat(e.target.value) })}
+          className="w-full"
+        />
+        <div className="text-xs text-gray-500 mt-1">0.1=factual, 1.0=creative</div>
+      </div>
+
+      {/* Context Chunks */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Context Chunks</label>
+        <select
+          value={searchConfig.context_chunks || DEFAULTS.CONTEXT_CHUNKS}
+          onChange={(e) => updateConfig({ context_chunks: Number(e.target.value) })}
+          className="w-full p-2 pr-8 border border-gray-300 rounded-lg text-sm"
+        >
+          {[3, 5, 7, 10].map((chunks) => (
+            <option key={chunks} value={chunks}>{chunks} chunks</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Max Length */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Max Length</label>
+        <select
+          value={searchConfig.max_length || DEFAULTS.MAX_ANSWER_LENGTH}
+          onChange={(e) => updateConfig({ max_length: Number(e.target.value) })}
+          className="w-full p-2 pr-8 border border-gray-300 rounded-lg text-sm"
+        >
+          {[100, 200, 300, 500].map((length) => (
+            <option key={length} value={length}>{length} tokens</option>
+          ))}
+        </select>
+      </div>
+    </div>
+  );
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -96,76 +245,119 @@ const Search = ({ apiKey }) => {
         />
       )}
 
-      {/* Search Configuration */}
+      {/* Layout Selector */}
       <div className="card">
-        <div className="flex items-center mb-4">
-          <Target className="w-5 h-5 text-primary-600 mr-2" />
-          <h3 className="text-lg font-semibold text-gray-900">Search Configuration</h3>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {/* Model Selection */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Model</label>
-            <select
-              value={searchConfig.embedding_model}
-              onChange={(e) => updateConfig({ embedding_model: e.target.value })}
-              className="w-full p-2 pr-8 border border-gray-300 rounded-lg text-sm"
-            >
-              {models?.models?.map((model) => (
-                <option key={model.name} value={model.name}>
-                  {model.name.split('/').pop()} ({model.dimension}d) - {model.description}
-                </option>
-              ))}
-            </select>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center">
+            <Settings className="w-5 h-5 text-primary-600 mr-2" />
+            <h3 className="text-lg font-semibold text-gray-900">RAG Configuration</h3>
           </div>
-
-          {/* Chunking Strategy */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Chunking</label>
+          <div className="flex items-center space-x-2">
+            <span className="text-sm text-gray-600">Layout:</span>
             <select
-              value={searchConfig.chunking_strategy}
-              onChange={(e) => updateConfig({ chunking_strategy: e.target.value })}
-              className="w-full p-2 pr-8 border border-gray-300 rounded-lg text-sm"
+              value={layoutMode}
+              onChange={(e) => setLayoutMode(e.target.value)}
+              className="text-sm border border-gray-300 rounded px-2 py-1"
             >
-              {chunkingStrategies.map((strategy) => (
-                <option key={strategy.value} value={strategy.value}>
-                  {strategy.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* RAG Technique */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">RAG Technique</label>
-            <select
-              value={searchConfig.rag_technique}
-              onChange={(e) => updateConfig({ rag_technique: e.target.value })}
-              className="w-full p-2 pr-8 border border-gray-300 rounded-lg text-sm"
-            >
-              {techniques?.techniques?.map((technique) => (
-                <option key={technique.name} value={technique.name}>
-                  {technique.name.replace('_', ' ')}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Top K Results */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Top K</label>
-            <select
-              value={searchConfig.top_k}
-              onChange={(e) => updateConfig({ top_k: Number(e.target.value) })}
-              className="w-full p-2 pr-8 border border-gray-300 rounded-lg text-sm"
-            >
-              {[3, 5, 10, 15, 20].map((k) => (
-                <option key={k} value={k}>{k} results</option>
-              ))}
+              <option value="split">Split Panel</option>
+              <option value="tabbed">Tabbed</option>
+              <option value="expandable">Expandable</option>
             </select>
           </div>
         </div>
+
+        {/* Split Panel Layout */}
+        {layoutMode === 'split' && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div className="flex items-center">
+                <Database className="w-4 h-4 text-blue-600 mr-2" />
+                <h4 className="font-medium text-gray-900">Retrieval Settings</h4>
+              </div>
+              {renderRetrievalSettings()}
+            </div>
+            <div className="space-y-4">
+              <div className="flex items-center">
+                <Brain className="w-4 h-4 text-green-600 mr-2" />
+                <h4 className="font-medium text-gray-900">Generation Settings</h4>
+              </div>
+              {renderGenerationSettings()}
+            </div>
+          </div>
+        )}
+
+        {/* Tabbed Layout */}
+        {layoutMode === 'tabbed' && (
+          <div>
+            <div className="flex border-b border-gray-200 mb-4">
+              <button
+                onClick={() => setActiveTab('retrieval')}
+                className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
+                  activeTab === 'retrieval'
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <Database className="w-4 h-4 inline mr-2" />
+                Retrieval Settings
+              </button>
+              <button
+                onClick={() => setActiveTab('generation')}
+                className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
+                  activeTab === 'generation'
+                    ? 'border-green-500 text-green-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700'
+                }`}
+              >
+                <Brain className="w-4 h-4 inline mr-2" />
+                Generation Settings
+              </button>
+            </div>
+            {activeTab === 'retrieval' && renderRetrievalSettings()}
+            {activeTab === 'generation' && renderGenerationSettings()}
+          </div>
+        )}
+
+        {/* Expandable Layout */}
+        {layoutMode === 'expandable' && (
+          <div className="space-y-4">
+            <div className="border border-gray-200 rounded-lg">
+              <button
+                onClick={() => setRetrievalExpanded(!retrievalExpanded)}
+                className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50 transition-colors"
+              >
+                <div className="flex items-center">
+                  <Database className="w-4 h-4 text-blue-600 mr-2" />
+                  <h4 className="font-medium text-gray-900">Retrieval Settings</h4>
+                </div>
+                {retrievalExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+              {retrievalExpanded && (
+                <div className="p-4 pt-0 border-t border-gray-100">
+                  {renderRetrievalSettings()}
+                </div>
+              )}
+            </div>
+            
+            <div className="border border-gray-200 rounded-lg">
+              <button
+                onClick={() => setGenerationExpanded(!generationExpanded)}
+                className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50 transition-colors"
+              >
+                <div className="flex items-center">
+                  <Brain className="w-4 h-4 text-green-600 mr-2" />
+                  <h4 className="font-medium text-gray-900">Generation Settings</h4>
+                </div>
+                {generationExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+              {generationExpanded && (
+                <div className="p-4 pt-0 border-t border-gray-100">
+                  {renderGenerationSettings()}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Search Interface */}

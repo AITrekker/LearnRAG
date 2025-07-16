@@ -20,6 +20,7 @@ class ApiService {
     this.generateAnswer = this.generateAnswer.bind(this);
     this.getRagTechniques = this.getRagTechniques.bind(this);
     this.getRagSessions = this.getRagSessions.bind(this);
+    this.getLlmModels = this.getLlmModels.bind(this);
     this.getEmbeddingSettings = this.getEmbeddingSettings.bind(this);
     this.updateEmbeddingSettings = this.updateEmbeddingSettings.bind(this);
     this.getChunkingStrategies = this.getChunkingStrategies.bind(this);
@@ -148,6 +149,11 @@ class ApiService {
 
   async getRagSessions(limit = 10) {
     const response = await this.client.get(`/rag/sessions?limit=${limit}`);
+    return response.data;
+  }
+
+  async getLlmModels() {
+    const response = await this.client.get('/rag/llm-models');
     return response.data;
   }
 

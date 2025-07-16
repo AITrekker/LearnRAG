@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { useMutation } from 'react-query';
 import apiService from '../services/api';
 import { useErrorHandler } from './useErrorHandler';
+import { DEFAULTS } from '../config';
 
 /**
  * useRagSearch Hook - Centralized RAG Search State Management
@@ -21,10 +22,18 @@ export const useRagSearch = () => {
   // Search configuration state
   const [searchConfig, setSearchConfig] = useState({
     query: '',
-    embedding_model: 'sentence-transformers/all-MiniLM-L6-v2',
-    chunking_strategy: 'fixed_size',
-    rag_technique: 'similarity_search',
-    top_k: 5
+    embedding_model: DEFAULTS.EMBEDDING_MODEL,
+    chunking_strategy: DEFAULTS.CHUNKING_STRATEGY,
+    rag_technique: DEFAULTS.RAG_TECHNIQUE,
+    top_k: DEFAULTS.TOP_K,
+    // Generation parameters
+    answer_model: DEFAULTS.LLM_MODEL,
+    temperature: DEFAULTS.GENERATION_TEMPERATURE,
+    max_length: DEFAULTS.MAX_ANSWER_LENGTH,
+    context_chunks: DEFAULTS.CONTEXT_CHUNKS,
+    min_similarity: DEFAULTS.MIN_SIMILARITY,
+    repetition_penalty: DEFAULTS.REPETITION_PENALTY,
+    top_p: DEFAULTS.TOP_P
   });
 
   // Results state
@@ -93,11 +102,18 @@ export const useRagSearch = () => {
     
     const answerParams = {
       query: searchConfig.query,
+      // Retrieval parameters
       embedding_model: searchConfig.embedding_model,
       chunking_strategy: searchConfig.chunking_strategy,
       top_k: Math.min(searchConfig.top_k * 2, 10), // More context for answers
-      min_similarity: 0.3,
-      max_length: 200
+      min_similarity: searchConfig.min_similarity,
+      // Generation parameters
+      answer_model: searchConfig.answer_model,
+      temperature: searchConfig.temperature,
+      max_length: searchConfig.max_length,
+      context_chunks: searchConfig.context_chunks,
+      repetition_penalty: searchConfig.repetition_penalty,
+      top_p: searchConfig.top_p
     };
     
     answerMutation.mutate(answerParams);

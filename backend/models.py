@@ -13,7 +13,7 @@ from sqlalchemy.sql import func
 from sqlalchemy.dialects.postgresql import JSONB
 from pgvector.sqlalchemy import Vector
 from database import Base
-from config import DEFAULT_EMBEDDING_MODEL, DEFAULT_CHUNKING_STRATEGY, DEFAULT_CHUNK_SIZE, DEFAULT_CHUNK_OVERLAP, DEFAULT_LLM_MODEL, DEFAULT_TOP_K, DEFAULT_MAX_ANSWER_LENGTH
+from config import DEFAULT_EMBEDDING_MODEL, DEFAULT_CHUNKING_STRATEGY, DEFAULT_CHUNK_SIZE, DEFAULT_CHUNK_OVERLAP, DEFAULT_LLM_MODEL, DEFAULT_TOP_K, DEFAULT_MAX_ANSWER_LENGTH, DEFAULT_TEMPERATURE, DEFAULT_CONTEXT_CHUNKS, DEFAULT_REPETITION_PENALTY, DEFAULT_TOP_P, DEFAULT_MIN_SIMILARITY
 
 # =============================================================================
 # DATABASE MODELS (SQLAlchemy)
@@ -109,12 +109,18 @@ class SearchRequest(BaseModel):
 
 class AnswerRequest(BaseModel):
     query: str = Field(..., description="Question to answer")
-    embedding_model: str = Field(default=DEFAULT_EMBEDDING_MODEL, description="Embedding model")
-    chunking_strategy: str = Field(default=DEFAULT_CHUNKING_STRATEGY, description="Chunking strategy")
-    answer_model: str = Field(default=DEFAULT_LLM_MODEL, description="LLM model")
-    top_k: int = Field(default=DEFAULT_TOP_K, description="Number of chunks")
-    min_similarity: float = Field(default=0.3, description="Minimum similarity")
-    max_length: int = Field(default=DEFAULT_MAX_ANSWER_LENGTH, description="Max answer length")
+    # Retrieval settings (same as search)
+    embedding_model: str = Field(default=DEFAULT_EMBEDDING_MODEL, description="Embedding model for retrieval")
+    chunking_strategy: str = Field(default=DEFAULT_CHUNKING_STRATEGY, description="Chunking strategy for retrieval")
+    top_k: int = Field(default=DEFAULT_TOP_K, description="Number of chunks to retrieve")
+    min_similarity: float = Field(default=DEFAULT_MIN_SIMILARITY, description="Minimum similarity threshold for chunks")
+    # Generation settings (LLM-specific)
+    answer_model: str = Field(default=DEFAULT_LLM_MODEL, description="LLM model for answer generation")
+    temperature: float = Field(default=DEFAULT_TEMPERATURE, description="Generation temperature (0.1=factual, 1.0=creative)")
+    max_length: int = Field(default=DEFAULT_MAX_ANSWER_LENGTH, description="Maximum answer length in tokens")
+    context_chunks: int = Field(default=DEFAULT_CONTEXT_CHUNKS, description="Number of top chunks to use for context")
+    repetition_penalty: float = Field(default=DEFAULT_REPETITION_PENALTY, description="Penalty for repetitive text")
+    top_p: float = Field(default=DEFAULT_TOP_P, description="Nucleus sampling parameter")
 
 class SearchResult(BaseModel):
     chunk_text: str = Field(..., description="Text content")

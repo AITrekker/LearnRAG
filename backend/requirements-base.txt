@@ -5,6 +5,7 @@ accelerate>=1.2.0
 tokenizers>=0.19.0,<0.21.0
 huggingface-hub>=0.26.0
 torch>=2.0.0
+sentencepiece>=0.1.99
 
 # Vector databases
 pgvector==0.2.4

@@ -5,9 +5,20 @@ import asyncio
 import logging
 import time
 from typing import List, Dict, Any, Optional, Tuple
-from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, T5Tokenizer
 import torch
 from threading import Lock
+
+# Ensure SentencePiece is available
+try:
+    import sentencepiece
+except ImportError:
+    logger = logging.getLogger(__name__)
+    logger.warning("SentencePiece not found. Installing...")
+    import subprocess
+    import sys
+    subprocess.check_call([sys.executable, "-m", "pip", "install", "sentencepiece"])
+    import sentencepiece
 
 from models import SearchResult
 
@@ -46,7 +57,7 @@ class LLMService:
             # Detect device
             self.device = self._detect_device()
             
-            # Load tokenizer
+            # Load tokenizer - SentencePiece should now be available
             self.tokenizer = AutoTokenizer.from_pretrained(model_name)
             
             # Load model with appropriate device mapping
@@ -128,7 +139,11 @@ Answer:"""
         query: str,
         chunks: List[SearchResult],
         model_name: str = "google/flan-t5-base",
-        max_length: int = 200
+        max_length: int = 200,
+        temperature: float = 0.3,
+        top_p: float = 0.9,
+        repetition_penalty: float = 1.1,
+        context_chunks: int = 5
     ) -> Dict[str, Any]:
         """
         Generate an answer from retrieved chunks using LLM
@@ -158,13 +173,16 @@ Answer:"""
                     "error": None
                 }
             
+            # Use only the top chunks for context
+            top_chunks = chunks[:context_chunks]
+            
             # Create prompt
-            prompt = self._create_prompt(query, chunks)
+            prompt = self._create_prompt(query, top_chunks)
             logger.info(f"Generated prompt: {prompt[:200]}...")
             
             # Run inference in thread pool to avoid blocking
             answer = await asyncio.get_event_loop().run_in_executor(
-                None, self._generate_sync, prompt, max_length
+                None, self._generate_sync, prompt, max_length, temperature, top_p, repetition_penalty
             )
             
             logger.info(f"Generated answer: {answer}")
@@ -194,7 +212,7 @@ Answer:"""
                 "error": str(e)
             }
     
-    def _generate_sync(self, prompt: str, max_length: int) -> str:
+    def _generate_sync(self, prompt: str, max_length: int, temperature: float = 0.3, top_p: float = 0.9, repetition_penalty: float = 1.1) -> str:
         """Synchronous answer generation (runs in thread pool)"""
         try:
             # Tokenize input
@@ -205,16 +223,16 @@ Answer:"""
                 return_tensors="pt"
             ).to(self.device)
             
-            # Generate answer with better parameters for T5
+            # Generate answer with configurable parameters
             with torch.no_grad():
                 outputs = self.model.generate(
                     inputs.input_ids,
                     max_length=max_length,
                     num_return_sequences=1,
-                    temperature=0.3,  # Lower temperature for more focused answers
+                    temperature=temperature,
                     do_sample=True,
-                    top_p=0.9,  # Use nucleus sampling
-                    repetition_penalty=1.1,  # Prevent repetition
+                    top_p=top_p,
+                    repetition_penalty=repetition_penalty,
                     pad_token_id=self.tokenizer.pad_token_id,
                     early_stopping=True
                 )
@@ -272,21 +290,33 @@ Answer:"""
         """Get list of available LLM models"""
         return [
             {
-                "name": "google/flan-t5-base",
-                "description": "Google's T5 model fine-tuned for instructions (250M params)",
-                "size": "small",
+                "name": "allenai/unifiedqa-t5-base",
+                "description": "QA-optimized T5 (250M) - Best for literature Q&A",
+                "size": "medium",
                 "recommended": True
             },
             {
-                "name": "google/flan-t5-large", 
-                "description": "Larger T5 model for better quality (780M params)",
+                "name": "google/flan-t5-base",
+                "description": "Instruction-tuned T5 (250M) - Best balance",
+                "size": "medium",
+                "recommended": True
+            },
+            {
+                "name": "facebook/bart-large-cnn",
+                "description": "BART CNN-trained (400M) - Different architecture",
                 "size": "large",
                 "recommended": False
             },
             {
-                "name": "microsoft/DialoGPT-medium",
-                "description": "Microsoft's conversational model (345M params)",
-                "size": "medium", 
+                "name": "google/flan-t5-large", 
+                "description": "High-quality T5 (780M) - Best comprehension",
+                "size": "large",
+                "recommended": False
+            },
+            {
+                "name": "google/flan-t5-small",
+                "description": "Fast T5 (80M) - Quick literature demos",
+                "size": "small",
                 "recommended": False
             }
         ]

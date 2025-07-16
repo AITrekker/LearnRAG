@@ -31,7 +31,14 @@ export const DEFAULTS = {
   RAG_TECHNIQUE: process.env.REACT_APP_DEFAULT_RAG_TECHNIQUE || 'similarity_search',
   TOP_K: parseInt(process.env.REACT_APP_DEFAULT_TOP_K || '5'),
   MAX_ANSWER_LENGTH: parseInt(process.env.REACT_APP_DEFAULT_MAX_ANSWER_LENGTH || '200'),
-  TEMPERATURE: parseFloat(process.env.REACT_APP_DEFAULT_TEMPERATURE || '0.7')
+  TEMPERATURE: parseFloat(process.env.REACT_APP_DEFAULT_TEMPERATURE || '0.7'),
+  // Generation-specific defaults
+  LLM_MODEL: process.env.REACT_APP_DEFAULT_LLM_MODEL || 'allenai/unifiedqa-t5-base',
+  GENERATION_TEMPERATURE: parseFloat(process.env.REACT_APP_DEFAULT_GENERATION_TEMPERATURE || '0.3'),
+  CONTEXT_CHUNKS: parseInt(process.env.REACT_APP_DEFAULT_CONTEXT_CHUNKS || '5'),
+  MIN_SIMILARITY: parseFloat(process.env.REACT_APP_DEFAULT_MIN_SIMILARITY || '0.3'),
+  REPETITION_PENALTY: parseFloat(process.env.REACT_APP_DEFAULT_REPETITION_PENALTY || '1.1'),
+  TOP_P: parseFloat(process.env.REACT_APP_DEFAULT_TOP_P || '0.9')
 };
 
 // Form Validation Limits

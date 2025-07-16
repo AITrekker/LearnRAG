@@ -22,7 +22,7 @@ OUTPUT_DIR = Path(os.getenv("OUTPUT_DIR", "/app/output"))
 
 # Model Configuration
 DEFAULT_EMBEDDING_MODEL = os.getenv("DEFAULT_EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
-DEFAULT_LLM_MODEL = os.getenv("DEFAULT_LLM_MODEL", "google/flan-t5-base")
+DEFAULT_LLM_MODEL = os.getenv("DEFAULT_LLM_MODEL", "allenai/unifiedqa-t5-base")
 
 # Processing Defaults
 DEFAULT_CHUNK_SIZE = int(os.getenv("DEFAULT_CHUNK_SIZE", "512"))
@@ -80,18 +80,52 @@ AVAILABLE_EMBEDDING_MODELS = [
 
 AVAILABLE_LLM_MODELS = [
     {
+        "name": "allenai/unifiedqa-t5-base",
+        "description": "QA-optimized T5 (250M) - Best for literature Q&A",
+        "default_temperature": 0.1,
+        "default_top_p": 0.8,
+        "default_repetition_penalty": 1.0,
+        "recommended": True
+    },
+    {
         "name": "google/flan-t5-base",
-        "description": "Instruction-tuned T5 model"
+        "description": "Instruction-tuned T5 (250M) - Best balance",
+        "default_temperature": 0.2,
+        "default_top_p": 0.85,
+        "default_repetition_penalty": 1.1,
+        "recommended": True
+    },
+    {
+        "name": "facebook/bart-large-cnn",
+        "description": "BART CNN-trained (400M) - Different architecture",
+        "default_temperature": 0.3,
+        "default_top_p": 0.9,
+        "default_repetition_penalty": 1.0,
+        "recommended": False
+    },
+    {
+        "name": "google/flan-t5-large",
+        "description": "High-quality T5 (780M) - Best comprehension",
+        "default_temperature": 0.2,
+        "default_top_p": 0.85,
+        "default_repetition_penalty": 1.1,
+        "recommended": False
     },
     {
         "name": "google/flan-t5-small",
-        "description": "Smaller, faster T5 model"
-    },
-    {
-        "name": "microsoft/DialoGPT-medium",
-        "description": "Conversational model"
+        "description": "Fast T5 (80M) - Quick literature demos",
+        "default_temperature": 0.2,
+        "default_top_p": 0.85,
+        "default_repetition_penalty": 1.1,
+        "recommended": False
     }
 ]
+
+# Generation defaults
+DEFAULT_CONTEXT_CHUNKS = int(os.getenv("DEFAULT_CONTEXT_CHUNKS", "5"))
+DEFAULT_REPETITION_PENALTY = float(os.getenv("DEFAULT_REPETITION_PENALTY", "1.1"))
+DEFAULT_TOP_P = float(os.getenv("DEFAULT_TOP_P", "0.9"))
+DEFAULT_MIN_SIMILARITY = float(os.getenv("DEFAULT_MIN_SIMILARITY", "0.3"))
 
 # Chunking strategies
 CHUNKING_STRATEGIES = [

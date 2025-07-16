@@ -10,6 +10,7 @@ from models import SearchResponse, AnswerResponse, SearchResult
 from api.auth import get_current_tenant
 from services.rag_service import RagService
 from services.llm_service import llm_service
+from config import AVAILABLE_LLM_MODELS
 
 router = APIRouter()
 
@@ -109,7 +110,11 @@ async def generate_answer(
         query=request.query,
         chunks=filtered_results,
         model_name=request.answer_model,
-        max_length=request.max_length
+        max_length=request.max_length,
+        temperature=request.temperature,
+        top_p=request.top_p,
+        repetition_penalty=request.repetition_penalty,
+        context_chunks=request.context_chunks
     )
     
     # Step 3: Save answer session
@@ -147,6 +152,12 @@ async def compare_techniques(
     """Compare different RAG techniques side by side"""
     # TODO: Implement in Phase 3
     return {"message": "Comparison feature coming in Phase 3"}
+
+
+@router.get("/llm-models")
+async def get_llm_models():
+    """Get available LLM models for answer generation"""
+    return {"models": AVAILABLE_LLM_MODELS}
 
 
 @router.get("/sessions")
