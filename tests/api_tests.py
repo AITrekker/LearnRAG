@@ -165,6 +165,7 @@ def run_detailed_api_tests():
     from test_tenants import TenantTests
     from test_embeddings import EmbeddingTests
     from test_rag import RagTests
+    from test_config import ConfigTests
     
     tester = APITester()
     
@@ -178,6 +179,7 @@ def run_detailed_api_tests():
     tenant_tests = TenantTests(tester.base_url, tester.session)
     embedding_tests = EmbeddingTests(tester.base_url, tester.session)
     rag_tests = RagTests(tester.base_url, tester.session)
+    config_tests = ConfigTests(tester.base_url, tester.session)
     
     all_results = []
     total_success = 0
@@ -188,7 +190,8 @@ def run_detailed_api_tests():
         ("🔐 Auth Tests", auth_tests),
         ("🏢 Tenant Tests", tenant_tests), 
         ("🧠 Embedding Tests", embedding_tests),
-        ("🔍 RAG Tests", rag_tests)
+        ("🔍 RAG Tests", rag_tests),
+        ("⚙️ Config Tests", config_tests)
     ]
     
     for suite_name, test_suite in test_suites:

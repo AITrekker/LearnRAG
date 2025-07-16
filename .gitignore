@@ -253,4 +253,5 @@ datasets/
 # Project instructions and docs
 .claude/
 docs/
+personal/
 CLAUDE.md

@@ -21,8 +21,8 @@ MODELS_CACHE_DIR = Path(os.getenv("MODELS_CACHE_DIR", "/app/models_cache"))
 OUTPUT_DIR = Path(os.getenv("OUTPUT_DIR", "/app/output"))
 
 # Model Configuration
-DEFAULT_EMBEDDING_MODEL = os.getenv("DEFAULT_EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
-DEFAULT_LLM_MODEL = os.getenv("DEFAULT_LLM_MODEL", "allenai/unifiedqa-t5-base")
+DEFAULT_EMBEDDING_MODEL = os.getenv("DEFAULT_EMBEDDING_MODEL", "BAAI/bge-small-en-v1.5")
+DEFAULT_LLM_MODEL = os.getenv("DEFAULT_LLM_MODEL", "google/flan-t5-base")
 
 # Processing Defaults
 DEFAULT_CHUNK_SIZE = int(os.getenv("DEFAULT_CHUNK_SIZE", "512"))
@@ -47,49 +47,41 @@ METRICS_FILE = Path(os.getenv("METRICS_FILE", "/app/metrics/embedding_metrics.js
 # Available Models (can be overridden with JSON env var)
 AVAILABLE_EMBEDDING_MODELS = [
     {
+        "name": "BAAI/bge-small-en-v1.5",
+        "dimension": 384,
+        "description": "Modern, balanced (384d) - SOTA 2024",
+        "default": True
+    },
+    {
         "name": "sentence-transformers/all-MiniLM-L6-v2",
         "dimension": 384,
-        "description": "Lightweight, fast model (384 dimensions)",
-        "default": True
+        "description": "Fastest, lightweight (384d) - Speed champion",
+        "default": False
     },
     {
         "name": "sentence-transformers/all-mpnet-base-v2", 
         "dimension": 768,
-        "description": "Higher quality, slower (768 dimensions)",
+        "description": "High quality, proven (768d) - Classic performer",
         "default": False
     },
     {
-        "name": "BAAI/bge-small-en-v1.5",
-        "dimension": 384,
-        "description": "Recent, good performance (384 dimensions)",
+        "name": "intfloat/e5-large-v2",
+        "dimension": 1024,
+        "description": "Document specialist (1024d) - Long text expert",
         "default": False
     },
     {
-        "name": "sentence-transformers/multi-qa-MiniLM-L6-cos-v1",
-        "dimension": 384,
-        "description": "Optimized for Q&A (384 dimensions)",
-        "default": False
-    },
-    {
-        "name": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
-        "dimension": 384,
-        "description": "Multilingual support (384 dimensions)",
+        "name": "BAAI/bge-large-en-v1.5",
+        "dimension": 1024,
+        "description": "Best quality, tables (1024d) - PDF/table expert",
         "default": False
     }
 ]
 
 AVAILABLE_LLM_MODELS = [
     {
-        "name": "allenai/unifiedqa-t5-base",
-        "description": "QA-optimized T5 (250M) - Best for literature Q&A",
-        "default_temperature": 0.1,
-        "default_top_p": 0.8,
-        "default_repetition_penalty": 1.0,
-        "recommended": True
-    },
-    {
         "name": "google/flan-t5-base",
-        "description": "Instruction-tuned T5 (250M) - Best balance",
+        "description": "Reliable instruction-following (250M) - Proven performer",
         "default_temperature": 0.2,
         "default_top_p": 0.85,
         "default_repetition_penalty": 1.1,
@@ -97,23 +89,31 @@ AVAILABLE_LLM_MODELS = [
     },
     {
         "name": "facebook/bart-large-cnn",
-        "description": "BART CNN-trained (400M) - Different architecture",
+        "description": "CNN-trained BART (400M) - Different training approach",
         "default_temperature": 0.3,
         "default_top_p": 0.9,
         "default_repetition_penalty": 1.0,
-        "recommended": False
+        "recommended": True
     },
     {
         "name": "google/flan-t5-large",
-        "description": "High-quality T5 (780M) - Best comprehension",
+        "description": "Scaling effects demo (780M) - Parameter scaling",
         "default_temperature": 0.2,
         "default_top_p": 0.85,
         "default_repetition_penalty": 1.1,
         "recommended": False
     },
     {
+        "name": "google/t5-base",
+        "description": "Original T5 base (220M) - Pre-instruction tuning",
+        "default_temperature": 0.3,
+        "default_top_p": 0.9,
+        "default_repetition_penalty": 1.1,
+        "recommended": False
+    },
+    {
         "name": "google/flan-t5-small",
-        "description": "Fast T5 (80M) - Quick literature demos",
+        "description": "Speed/efficiency trade-offs (80M) - Resource demo",
         "default_temperature": 0.2,
         "default_top_p": 0.85,
         "default_repetition_penalty": 1.1,

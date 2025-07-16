@@ -8,6 +8,7 @@ from models import Tenant, File, Embedding, TenantEmbeddingSettings
 from models import TenantInfo, FileInfo, GeneralEmbeddingStatus, EmbeddingSettingsResponse, EmbeddingSettingsRequest
 from api.auth import get_current_tenant
 from services.tenant_service import TenantService
+from config import DEFAULT_EMBEDDING_MODEL, DEFAULT_CHUNKING_STRATEGY, DEFAULT_CHUNK_SIZE, DEFAULT_CHUNK_OVERLAP
 
 router = APIRouter()
 
@@ -199,10 +200,10 @@ async def get_embedding_settings(
         # Create default settings if none exist
         settings = TenantEmbeddingSettings(
             tenant_id=tenant.id,
-            embedding_model="sentence-transformers/all-MiniLM-L6-v2",
-            chunking_strategy="fixed_size",
-            chunk_size=512,
-            chunk_overlap=50
+            embedding_model=DEFAULT_EMBEDDING_MODEL,
+            chunking_strategy=DEFAULT_CHUNKING_STRATEGY,
+            chunk_size=DEFAULT_CHUNK_SIZE,
+            chunk_overlap=DEFAULT_CHUNK_OVERLAP
         )
         db.add(settings)
         await db.commit()

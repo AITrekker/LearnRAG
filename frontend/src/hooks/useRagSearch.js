@@ -1,5 +1,5 @@
-import { useState, useCallback } from 'react';
-import { useMutation } from 'react-query';
+import { useState, useCallback, useEffect } from 'react';
+import { useMutation, useQuery } from 'react-query';
 import apiService from '../services/api';
 import { useErrorHandler } from './useErrorHandler';
 import { DEFAULTS } from '../config';
@@ -42,6 +42,30 @@ export const useRagSearch = () => {
   
   // Error handling
   const { error, handleError, clearError } = useErrorHandler();
+
+  // Fetch tenant's actual embedding settings to use as defaults
+  const { data: tenantSettings } = useQuery(
+    'tenantEmbeddingSettings',
+    () => apiService.getEmbeddingSettings(),
+    {
+      onError: (error) => {
+        console.warn('Could not fetch tenant embedding settings, using defaults:', error);
+      },
+      retry: 1
+    }
+  );
+
+  // Update search config when tenant settings are loaded
+  useEffect(() => {
+    if (tenantSettings) {
+      setSearchConfig(prev => ({
+        ...prev,
+        embedding_model: tenantSettings.embedding_model || DEFAULTS.EMBEDDING_MODEL,
+        chunking_strategy: tenantSettings.chunking_strategy || DEFAULTS.CHUNKING_STRATEGY,
+        // Keep other settings as configured by user or defaults
+      }));
+    }
+  }, [tenantSettings]);
 
   // Search mutation for semantic retrieval
   const searchMutation = useMutation(

@@ -24,7 +24,7 @@ export const POLLING_THRESHOLDS = {
 
 // Default Values
 export const DEFAULTS = {
-  EMBEDDING_MODEL: process.env.REACT_APP_DEFAULT_EMBEDDING_MODEL || 'sentence-transformers/all-MiniLM-L6-v2',
+  EMBEDDING_MODEL: process.env.REACT_APP_DEFAULT_EMBEDDING_MODEL || 'BAAI/bge-small-en-v1.5',
   CHUNKING_STRATEGY: process.env.REACT_APP_DEFAULT_CHUNKING_STRATEGY || 'fixed_size',
   CHUNK_SIZE: parseInt(process.env.REACT_APP_DEFAULT_CHUNK_SIZE || '512'),
   CHUNK_OVERLAP: parseInt(process.env.REACT_APP_DEFAULT_CHUNK_OVERLAP || '50'),
@@ -33,7 +33,7 @@ export const DEFAULTS = {
   MAX_ANSWER_LENGTH: parseInt(process.env.REACT_APP_DEFAULT_MAX_ANSWER_LENGTH || '200'),
   TEMPERATURE: parseFloat(process.env.REACT_APP_DEFAULT_TEMPERATURE || '0.7'),
   // Generation-specific defaults
-  LLM_MODEL: process.env.REACT_APP_DEFAULT_LLM_MODEL || 'allenai/unifiedqa-t5-base',
+  LLM_MODEL: process.env.REACT_APP_DEFAULT_LLM_MODEL || 'google/flan-t5-base',
   GENERATION_TEMPERATURE: parseFloat(process.env.REACT_APP_DEFAULT_GENERATION_TEMPERATURE || '0.3'),
   CONTEXT_CHUNKS: parseInt(process.env.REACT_APP_DEFAULT_CONTEXT_CHUNKS || '5'),
   MIN_SIMILARITY: parseFloat(process.env.REACT_APP_DEFAULT_MIN_SIMILARITY || '0.3'),

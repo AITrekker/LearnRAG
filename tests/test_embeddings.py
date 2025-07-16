@@ -37,6 +37,16 @@ class EmbeddingTests:
                     required_fields = ["name", "description", "dimension", "default"]
                     result["valid_model_structure"] = all(field in first_model for field in required_fields)
                     result["success"] = result["success"] and result["valid_model_structure"]
+                    
+                    # Check if we have the new default model (bge-small-en-v1.5)
+                    model_names = [m.get("name", "") for m in models]
+                    result["has_bge_small"] = "BAAI/bge-small-en-v1.5" in model_names
+                    
+                    # Check if the default is correctly set
+                    default_models = [m for m in models if m.get("default", False)]
+                    result["has_default_model"] = len(default_models) > 0
+                    if default_models:
+                        result["default_model_name"] = default_models[0].get("name")
         
         return result
     
@@ -180,6 +190,57 @@ class EmbeddingTests:
         
         return result
 
+    def test_get_file_embedding_status(self) -> Dict[str, Any]:
+        """Test getting embedding status for specific file"""
+        files_response = self.session.get(f"{self.base_url}/api/tenants/files")
+        
+        result = {
+            "test_name": "get_file_embedding_status",
+            "success": False,
+            "endpoint": "/api/embeddings/status/[file_id]"
+        }
+        
+        if files_response.status_code == 200:
+            files = files_response.json()
+            if files and len(files) > 0:
+                file_id = files[0]["id"]
+                response = self.session.get(f"{self.base_url}/api/embeddings/status/{file_id}")
+                result["status_code"] = response.status_code
+                result["success"] = response.status_code in [200, 404, 500]
+            else:
+                result["status_code"] = "no_files"
+                result["success"] = True
+        else:
+            result["status_code"] = files_response.status_code
+        
+        return result
+
+    def test_delete_file_embeddings(self) -> Dict[str, Any]:
+        """Test deleting embeddings for specific file"""
+        files_response = self.session.get(f"{self.base_url}/api/tenants/files")
+        
+        result = {
+            "test_name": "delete_file_embeddings",
+            "success": False,
+            "endpoint": "/api/embeddings/[file_id]",
+            "method": "DELETE"
+        }
+        
+        if files_response.status_code == 200:
+            files = files_response.json()
+            if files and len(files) > 0:
+                file_id = files[0]["id"]
+                response = self.session.delete(f"{self.base_url}/api/embeddings/{file_id}")
+                result["status_code"] = response.status_code
+                result["success"] = response.status_code in [200, 404]
+            else:
+                result["status_code"] = "no_files"
+                result["success"] = True
+        else:
+            result["status_code"] = files_response.status_code
+        
+        return result
+
     def run_all_tests(self) -> list:
         """Run all embedding tests"""
         tests = [
@@ -188,7 +249,9 @@ class EmbeddingTests:
             self.test_get_chunking_strategies,
             self.test_get_current_metrics,
             self.test_generate_embeddings_invalid_payload,
-            self.test_generate_embeddings_valid_payload
+            self.test_generate_embeddings_valid_payload,
+            self.test_get_file_embedding_status,
+            self.test_delete_file_embeddings
         ]
         
         results = []

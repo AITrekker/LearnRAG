@@ -304,32 +304,32 @@ Answer:"""
         """Get list of available LLM models"""
         return [
             {
-                "name": "allenai/unifiedqa-t5-base",
-                "description": "QA-optimized T5 (250M) - Best for literature Q&A",
-                "size": "medium",
-                "recommended": True
-            },
-            {
                 "name": "google/flan-t5-base",
-                "description": "Instruction-tuned T5 (250M) - Best balance",
+                "description": "Reliable instruction-following (250M) - Proven performer",
                 "size": "medium",
                 "recommended": True
             },
             {
                 "name": "facebook/bart-large-cnn",
-                "description": "BART CNN-trained (400M) - Different architecture",
+                "description": "CNN-trained BART (400M) - Different training approach",
+                "size": "large",
+                "recommended": True
+            },
+            {
+                "name": "google/flan-t5-large", 
+                "description": "Scaling effects demo (780M) - Parameter scaling",
                 "size": "large",
                 "recommended": False
             },
             {
-                "name": "google/flan-t5-large", 
-                "description": "High-quality T5 (780M) - Best comprehension",
-                "size": "large",
+                "name": "google/t5-base",
+                "description": "Original T5 base (220M) - Pre-instruction tuning",
+                "size": "medium",
                 "recommended": False
             },
             {
                 "name": "google/flan-t5-small",
-                "description": "Fast T5 (80M) - Quick literature demos",
+                "description": "Speed/efficiency trade-offs (80M) - Resource demo",
                 "size": "small",
                 "recommended": False
             }

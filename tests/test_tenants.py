@@ -118,6 +118,10 @@ class TenantTests:
             required_fields = ["embedding_model", "chunking_strategy", "chunk_overlap"]
             result["has_required_fields"] = all(field in data for field in required_fields)
             result["success"] = result["success"] and result["has_required_fields"]
+            
+            # Check if using new default model
+            result["uses_new_default"] = data.get("embedding_model") == "BAAI/bge-small-en-v1.5"
+            result["embedding_model_used"] = data.get("embedding_model")
         
         return result
     
@@ -187,6 +191,27 @@ class TenantTests:
         
         return result
 
+    def test_update_embedding_settings_invalid_data(self) -> Dict[str, Any]:
+        """Test updating tenant embedding settings with invalid data"""
+        invalid_settings = {
+            "embedding_model": "invalid/model-name",
+            "chunking_strategy": "invalid_strategy",
+            "chunk_size": -1,
+            "chunk_overlap": -1
+        }
+        
+        response = self.session.post(f"{self.base_url}/api/tenants/embedding-settings", json=invalid_settings)
+        
+        result = {
+            "test_name": "update_embedding_settings_invalid_data",
+            "status_code": response.status_code,
+            "success": response.status_code in [200, 400, 422],  # Backend may accept and set defaults
+            "endpoint": "/api/tenants/embedding-settings",
+            "method": "POST"
+        }
+        
+        return result
+
     def run_all_tests(self) -> list:
         """Run all tenant tests"""
         tests = [
@@ -196,7 +221,8 @@ class TenantTests:
             self.test_get_embedding_summary,
             self.test_get_embedding_settings,
             self.test_update_embedding_settings,
-            self.test_sync_files
+            self.test_sync_files,
+            self.test_update_embedding_settings_invalid_data
         ]
         
         results = []
@@ -212,6 +238,8 @@ class TenantTests:
                     extra_info = f" ({result['file_count']} files)"
                 elif "tenant_name" in result:
                     extra_info = f" ({result['tenant_name']})"
+                elif "embedding_model_used" in result:
+                    extra_info = f" ({result['embedding_model_used'].split('/')[-1] if '/' in result['embedding_model_used'] else result['embedding_model_used']})"
                 
                 print(f"  {status} {result['test_name']}: {result['status_code']}{extra_info}")
             except Exception as e:

@@ -8,7 +8,7 @@ Teaching Purpose: Demonstrates proper error handling patterns in RAG systems:
 - Debugging-friendly error details
 """
 from fastapi import HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any
 from datetime import datetime
 import uuid
@@ -47,8 +47,8 @@ class ErrorResponse(BaseModel):
     error_type: str
     message: str
     details: Optional[Dict[str, Any]] = None
-    timestamp: datetime = datetime.utcnow()
-    request_id: str = uuid.uuid4().hex
+    timestamp: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
+    request_id: str = Field(default_factory=lambda: uuid.uuid4().hex)
 
 class LearnRAGException(HTTPException):
     """Base exception for LearnRAG with standardized error handling"""
