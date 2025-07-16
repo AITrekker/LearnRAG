@@ -66,6 +66,17 @@ docker-compose up --build
 docker-compose -f docker-compose.mac.yml up --build
 ```
 
+**Alternative if above fails**:
+```bash
+# Manual fix - create missing file
+mkdir -p frontend/public
+cp frontend/public/index.html.backup frontend/public/index.html 2>/dev/null || \
+echo '<!DOCTYPE html><html><head><title>LearnRAG</title></head><body><div id="root"></div></body></html>' > frontend/public/index.html
+
+# Then try again
+docker-compose -f docker-compose.mac.yml up --build
+```
+
 ### Mac: Permission Errors
 **Solution**: Fix ownership and try again:
 ```bash

@@ -1,0 +1,40 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copy package files first for better Docker layer caching
+COPY package*.json ./
+
+# Install dependencies
+RUN npm install
+
+# Copy source code
+COPY . .
+
+# Ensure public directory and index.html exist
+RUN mkdir -p public && \
+    if [ ! -f public/index.html ]; then \
+        echo "Creating missing index.html"; \
+        echo '<!DOCTYPE html>' > public/index.html; \
+        echo '<html lang="en">' >> public/index.html; \
+        echo '<head>' >> public/index.html; \
+        echo '<meta charset="utf-8" />' >> public/index.html; \
+        echo '<meta name="viewport" content="width=device-width, initial-scale=1" />' >> public/index.html; \
+        echo '<title>LearnRAG</title>' >> public/index.html; \
+        echo '</head>' >> public/index.html; \
+        echo '<body>' >> public/index.html; \
+        echo '<div id="root"></div>' >> public/index.html; \
+        echo '</body>' >> public/index.html; \
+        echo '</html>' >> public/index.html; \
+    fi
+
+# Simple verification
+RUN echo "=== Files ready ===" && \
+    ls -la public/index.html && \
+    echo "Content preview:" && \
+    head -3 public/index.html
+
+EXPOSE 3000
+
+# Simple start command
+CMD ["npm", "start"]

@@ -11,10 +11,38 @@ RUN npm install
 # Copy source code
 COPY . .
 
+# Verify what files were copied and fix any issues
+RUN echo "=== Checking copied files ===" && \
+    ls -la && \
+    echo "=== Checking public directory ===" && \
+    ls -la public/ || echo "Public directory not found, creating..." && \
+    mkdir -p public
+
+# Create index.html if it doesn't exist
+RUN if [ ! -f public/index.html ]; then \
+    echo "Creating index.html..."; \
+    cat > public/index.html << 'EOF'
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#000000" />
+    <meta name="description" content="LearnRAG - Interactive platform for learning RAG techniques" />
+    <title>LearnRAG</title>
+  </head>
+  <body>
+    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <div id="root"></div>
+  </body>
+</html>
+EOF
+fi
+
 # Mac-specific fixes for file permissions and React
 RUN apk add --no-cache dos2unix && \
-    find . -type f -name "*.sh" -exec dos2unix {} \; && \
-    find . -type f -name "*.sh" -exec chmod +x {} \; && \
+    find . -type f -name "*.sh" -exec dos2unix {} \; 2>/dev/null || true && \
+    find . -type f -name "*.sh" -exec chmod +x {} \; 2>/dev/null || true && \
     chmod -R 755 public/ && \
     chmod 644 public/index.html && \
     chown -R node:node /app

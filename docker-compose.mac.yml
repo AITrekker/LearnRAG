@@ -41,7 +41,7 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile.mac  # Mac-specific Dockerfile
+      dockerfile: Dockerfile.mac-simple  # Simplified Mac-specific Dockerfile
     ports:
       - "3000:3000"
     env_file:
