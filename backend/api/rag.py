@@ -10,7 +10,7 @@ from models import SearchResponse, AnswerResponse, SearchResult
 from api.auth import get_current_tenant
 from services.rag_service import RagService
 from services.llm_service import llm_service
-from config import AVAILABLE_LLM_MODELS
+from config import AVAILABLE_LLM_MODELS, PROMPT_TEMPLATES
 
 router = APIRouter()
 
@@ -123,6 +123,7 @@ async def generate_answer(
         query=request.query,
         chunks=filtered_results,
         model_name=request.answer_model,
+        prompt_template=request.prompt_template,
         max_length=request.max_length,
         temperature=request.temperature,
         top_p=request.top_p,
@@ -151,6 +152,7 @@ async def generate_answer(
         sources=filtered_results,
         generation_time=float(answer_data["generation_time"]),  # Convert back to float for API response
         model_used=answer_data["model_used"],
+        prompt_template=request.prompt_template,
         fallback_used=answer_data["error"] is not None,
         error=answer_data["error"]
     )
@@ -171,6 +173,19 @@ async def compare_techniques(
 async def get_llm_models():
     """Get available LLM models for answer generation"""
     return {"models": AVAILABLE_LLM_MODELS}
+
+
+@router.get("/prompt-templates")
+async def get_prompt_templates():
+    """Get available prompt templates for answer generation"""
+    templates = []
+    for template_id, config in PROMPT_TEMPLATES.items():
+        templates.append({
+            "id": template_id,
+            "name": config["name"],
+            "description": config["description"]
+        })
+    return {"templates": templates}
 
 
 @router.get("/sessions")

@@ -7,16 +7,17 @@ import { DEFAULTS } from '../config';
 /**
  * useRagSearch Hook - Centralized RAG Search State Management
  * 
- * Teaching Purpose: Demonstrates advanced React patterns for RAG applications:
- * - Encapsulating complex search state logic
- * - Managing multiple related async operations (search + answer)
- * - Providing clean, reusable interface for components
- * - Error handling integration for robust UX
+ * WHY CUSTOM HOOKS?
+ * - Encapsulates complex search state logic in reusable component
+ * - Manages multiple related async operations (search + answer)
+ * - Provides clean, predictable interface for UI components
+ * - Integrates error handling for robust user experience
  * 
- * RAG Concepts:
+ * RAG STATE MANAGEMENT:
  * - Search parameters affect retrieval quality and performance
  * - State coordination between search and answer generation
  * - Real-time feedback during async RAG operations
+ * - Configuration persistence across component re-renders
  */
 export const useRagSearch = () => {
   // Search configuration state
@@ -28,6 +29,7 @@ export const useRagSearch = () => {
     top_k: DEFAULTS.TOP_K,
     // Generation parameters
     answer_model: DEFAULTS.LLM_MODEL,
+    prompt_template: 'factual',
     temperature: DEFAULTS.GENERATION_TEMPERATURE,
     max_length: DEFAULTS.MAX_ANSWER_LENGTH,
     context_chunks: DEFAULTS.CONTEXT_CHUNKS,

@@ -1,3 +1,22 @@
+"""
+Embeddings API - Vector Generation and Management Endpoints
+
+Teaching Purpose: This API demonstrates embedding lifecycle management:
+
+1. EMBEDDING GENERATION: Convert text documents into searchable vectors
+2. STATUS MONITORING: Track embedding progress and completion
+3. MODEL MANAGEMENT: Select and configure different embedding models
+4. BACKGROUND PROCESSING: Handle long-running embedding tasks
+5. METRICS COLLECTION: Track performance and usage patterns
+
+Core API Concepts Illustrated:
+- RESTful endpoints for embedding operations
+- Background task processing for long operations
+- Status endpoints for real-time progress tracking
+- Model configuration and selection APIs
+- Tenant-specific embedding management
+"""
+
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete, func

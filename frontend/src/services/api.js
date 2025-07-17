@@ -1,8 +1,41 @@
+/**
+ * API Service - Centralized HTTP Client for RAG Operations
+ * 
+ * This service demonstrates modern API communication patterns:
+ * 
+ * 1. AXIOS CONFIGURATION: Centralized HTTP client setup
+ * 2. AUTHENTICATION: Automatic API key injection
+ * 3. ERROR HANDLING: Standardized error processing and logging
+ * 4. REQUEST INTERCEPTORS: Automatic header management
+ * 5. RESPONSE INTERCEPTORS: Consistent error handling across all requests
+ * 
+ * Core Frontend API Concepts Illustrated:
+ * - Singleton pattern for shared HTTP client
+ * - Automatic authentication header injection
+ * - Centralized error handling and logging
+ * - Method binding for consistent context
+ * - Timeout configuration for reliable operations
+ */
+
 import axios from 'axios';
 import { parseApiError, logError } from '../utils/errorHandling';
 import { API_BASE_URL, API_TIMEOUT } from '../config';
 
 class ApiService {
+  /**
+   * Initialize API service with configured HTTP client
+   * 
+   * WHY CENTRALIZED API SERVICE?
+   * - Single point of configuration for all HTTP requests
+   * - Consistent error handling across the application
+   * - Automatic authentication header management
+   * - Standardized timeout and retry policies
+   * 
+   * METHOD BINDING:
+   * - Ensures 'this' context is preserved in React components
+   * - Prevents issues when methods are passed as callbacks
+   * - Maintains consistent API surface across components
+   */
   constructor() {
     this.initializeClient();
     
@@ -21,6 +54,7 @@ class ApiService {
     this.getRagTechniques = this.getRagTechniques.bind(this);
     this.getRagSessions = this.getRagSessions.bind(this);
     this.getLlmModels = this.getLlmModels.bind(this);
+    this.getPromptTemplates = this.getPromptTemplates.bind(this);
     this.getEmbeddingSettings = this.getEmbeddingSettings.bind(this);
     this.updateEmbeddingSettings = this.updateEmbeddingSettings.bind(this);
     this.getChunkingStrategies = this.getChunkingStrategies.bind(this);
@@ -28,6 +62,25 @@ class ApiService {
   }
 
   initializeClient() {
+    /**
+     * Initialize HTTP client with interceptors - Request/Response Pipeline
+     * 
+     * WHY AXIOS INTERCEPTORS?
+     * - Automatic authentication header injection
+     * - Centralized error handling and logging
+     * - Request/response transformation
+     * - Consistent timeout and retry policies
+     * 
+     * REQUEST INTERCEPTOR:
+     * - Automatically adds API key from localStorage
+     * - Ensures all requests are authenticated
+     * - Maintains consistent headers across requests
+     * 
+     * RESPONSE INTERCEPTOR:
+     * - Standardizes error handling across all API calls
+     * - Parses error responses into consistent format
+     * - Logs errors for debugging and monitoring
+     */
     this.client = axios.create({
       baseURL: `${API_BASE_URL}/api`,
       timeout: API_TIMEOUT,
@@ -154,6 +207,11 @@ class ApiService {
 
   async getLlmModels() {
     const response = await this.client.get('/rag/llm-models');
+    return response.data;
+  }
+
+  async getPromptTemplates() {
+    const response = await this.client.get('/rag/prompt-templates');
     return response.data;
   }
 

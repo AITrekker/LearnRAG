@@ -33,7 +33,7 @@ class RagService:
     """
     Core RAG retrieval service implementing semantic search over vector databases.
     
-    Teaching Concepts:
+    Key concepts demonstrated:
     - Query-to-vector transformation for semantic search
     - Vector similarity mathematics (cosine distance)
     - Database optimization for high-dimensional vector queries
@@ -47,7 +47,6 @@ class RagService:
         """
         Convert user query into searchable vector - RAG Step 1
         
-        Teaching Concepts:
         WHY EMBED QUERIES?
         - User questions must be in same vector space as document chunks
         - Same model ensures consistent similarity measurements
@@ -74,27 +73,17 @@ class RagService:
         """
         Core semantic search using vector similarity - RAG Step 2
         
-        Teaching Concepts:
-        VECTOR SIMILARITY MATHEMATICS:
-        - Cosine distance: 1 - cosine_similarity (0 = identical, 1 = orthogonal)
-        - pgvector <=> operator: optimized cosine distance for PostgreSQL
-        - Lower distance = higher similarity = more relevant
+        WHY VECTOR SIMILARITY?
+        - Uses cosine distance to find similar vectors (lower = more similar)
+        - pgvector <=> operator provides optimized PostgreSQL vector search
+        - Results filtered by tenant/model/strategy for data isolation
+        - top_k balances relevance vs context richness
         
-        SQL EXPLANATION:
+        SQL Process:
         1. JOIN embeddings with files for metadata
-        2. Filter by tenant/model/strategy (data isolation)
+        2. Filter by tenant/model/strategy
         3. ORDER BY cosine distance (closest vectors first)
-        4. LIMIT to top_k results (balance relevance vs context)
-        
-        PRODUCTION OPTIMIZATIONS:
-        - pgvector indexes for sub-second search over millions of vectors
-        - Batch processing for multiple queries
-        - Caching for frequently accessed content
-        
-        SEARCH QUALITY FACTORS:
-        - top_k: More results = more context but potentially less relevant
-        - Model consistency: Query and chunks must use same embedding model
-        - Chunking strategy: Affects granularity of retrieved information
+        4. LIMIT to top_k results
         """
         
         # Convert query embedding to pgvector format
@@ -153,7 +142,26 @@ class RagService:
         top_k: int,
         db: AsyncSession
     ) -> List[SearchResult]:
-        """Simple PostgreSQL full-text search for keyword matching"""
+        """
+        PostgreSQL full-text search for keyword matching - Traditional Search Method
+        
+        WHY KEYWORD SEARCH?
+        - Complements semantic search by finding exact term matches
+        - Essential for proper nouns, technical terms, and specific phrases
+        - Faster than vector search for simple queries
+        - Provides fallback when semantic search misses obvious matches
+        
+        EXAMPLE:
+        Query: "API key authentication"
+        Finds: chunks containing exactly "API", "key", "authentication"
+        vs Semantic: might find "login credentials" or "access tokens"
+        
+        PostgreSQL Full-Text Search:
+        - to_tsvector(): converts text to searchable tokens
+        - plainto_tsquery(): converts query to search terms
+        - ts_rank(): scores relevance based on term frequency/position
+        - @@ operator: matches query against document vectors
+        """
         
         sql_query = text("""
             SELECT 
@@ -207,7 +215,32 @@ class RagService:
         db: AsyncSession,
         semantic_weight: float = 0.7
     ) -> List[SearchResult]:
-        """Simple hybrid search combining semantic and keyword results"""
+        """
+        Hybrid search combining semantic and keyword results - Best of Both Worlds
+        
+        WHY HYBRID SEARCH?
+        - Semantic search: finds conceptually similar content (meaning-based)
+        - Keyword search: finds exact term matches (precision-based)
+        - Hybrid: combines both strengths while avoiding weaknesses
+        - Weighted scoring prevents one method from dominating results
+        
+        EXAMPLE:
+        Query: "reset password"
+        Semantic finds: "change your login credentials", "update account access"
+        Keyword finds: exact matches for "reset" AND "password"
+        Hybrid: Returns both types, weighted by semantic_weight (0.7 default)
+        
+        ALGORITHM:
+        1. Run both searches in parallel
+        2. Deduplicate results by chunk location
+        3. Weight scores: semantic_weight * semantic_score + (1-weight) * keyword_score
+        4. Sort by combined score and return top_k
+        
+        PRODUCTION BENEFITS:
+        - Better recall (finds more relevant results)
+        - Better precision (exact matches ranked highly)
+        - Handles diverse query types (technical terms + concepts)
+        """
         
         # Get results from both methods
         semantic_results = await self.similarity_search(

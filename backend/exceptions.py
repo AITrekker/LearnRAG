@@ -1,11 +1,20 @@
 """
-Standardized exceptions for LearnRAG API
+Standardized Exception System - Production-Ready Error Handling
 
-Teaching Purpose: Demonstrates proper error handling patterns in RAG systems:
-- Clear error categorization (validation, auth, system, external)
-- Consistent error response formats
-- User-friendly error messages
-- Debugging-friendly error details
+This module demonstrates comprehensive error handling patterns for RAG applications:
+
+1. ERROR CATEGORIZATION: Clear taxonomy of error types and codes
+2. CONSISTENT RESPONSES: Standardized error format across all endpoints
+3. USER-FRIENDLY MESSAGES: Clear, actionable error messages
+4. DEBUGGING SUPPORT: Detailed error information for troubleshooting
+5. TRACEABILITY: Request IDs and timestamps for error tracking
+
+Core Error Handling Concepts Illustrated:
+- Exception hierarchy with specialized error types
+- HTTP status code mapping to error categories
+- Structured error responses with metadata
+- Request correlation for distributed system debugging
+- Client-friendly error messages with technical details
 """
 from fastapi import HTTPException
 from pydantic import BaseModel, Field
@@ -42,7 +51,23 @@ class ErrorCode:
     VECTOR_SEARCH_ERROR = "VECTOR_SEARCH_ERROR"
 
 class ErrorResponse(BaseModel):
-    """Standardized error response model"""
+    """
+    Standardized error response model - Consistent API Error Format
+    
+    WHY STANDARDIZED ERRORS?
+    - Consistent error handling across all API endpoints
+    - Structured format enables programmatic error handling
+    - Debugging information without exposing sensitive data
+    - Request correlation for distributed system troubleshooting
+    
+    RESPONSE STRUCTURE:
+    - error_code: Machine-readable error identifier
+    - error_type: Category for client-side error handling
+    - message: Human-readable error description
+    - details: Additional context for debugging
+    - timestamp: When the error occurred
+    - request_id: Unique identifier for error tracking
+    """
     error_code: str
     error_type: str
     message: str
@@ -51,7 +76,21 @@ class ErrorResponse(BaseModel):
     request_id: str = Field(default_factory=lambda: uuid.uuid4().hex)
 
 class LearnRAGException(HTTPException):
-    """Base exception for LearnRAG with standardized error handling"""
+    """
+    Base exception for LearnRAG with standardized error handling - Exception Hierarchy
+    
+    WHY CUSTOM EXCEPTION BASE CLASS?
+    - Ensures consistent error response format across all exceptions
+    - Integrates with FastAPI's exception handling system
+    - Provides structured error information for debugging
+    - Enables centralized error logging and monitoring
+    
+    INHERITANCE PATTERN:
+    - All LearnRAG exceptions inherit from this base class
+    - Automatically formats errors according to ErrorResponse model
+    - Maintains HTTP status codes and error categorization
+    - Preserves FastAPI's exception handling flow
+    """
     
     def __init__(
         self, 

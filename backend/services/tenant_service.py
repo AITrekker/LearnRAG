@@ -1,3 +1,22 @@
+"""
+Tenant Service - Multi-Tenant Data Management System
+
+Teaching Purpose: This service demonstrates multi-tenant architecture patterns:
+
+1. TENANT DISCOVERY: Auto-discover tenants from filesystem structure
+2. DATA ISOLATION: Separate data storage per tenant for security
+3. API KEY MANAGEMENT: Generate and manage tenant authentication
+4. FILE SYNCHRONIZATION: Copy and track files for each tenant
+5. SETTINGS MANAGEMENT: Per-tenant configuration and preferences
+
+Core Multi-Tenant Concepts Illustrated:
+- Tenant isolation using database tenant_id filtering
+- Filesystem organization with tenant-specific directories
+- API key generation and management for authentication
+- Delta sync for file changes and updates
+- Cascade deletion for tenant cleanup
+"""
+
 import os
 import shutil
 import json
@@ -16,13 +35,38 @@ from utils import PathConfig, DatabaseUtils, FileUtils
 
 
 class TenantService:
+    """
+    Multi-tenant data management service
+    
+    Key concepts demonstrated:
+    - Tenant discovery from filesystem structure
+    - Data isolation and security patterns
+    - API key generation and management
+    - File synchronization and tracking
+    - Cascade operations for tenant lifecycle
+    """
     def __init__(self):
         self.demo_data_dir = PathConfig.DEMO_DATA
         self.internal_files_dir = PathConfig.INTERNAL_FILES
         self.internal_files_dir.mkdir(exist_ok=True)
 
     async def auto_discover_tenants(self):
-        """Auto-discover tenants from setup directory - only if database is empty"""
+        """
+        Auto-discover tenants from setup directory - Smart Initialization
+        
+        WHY AUTO-DISCOVERY?
+        - Simplifies onboarding: drop files in folders, system handles the rest
+        - Prevents duplicate tenants on container restarts
+        - Maintains data consistency across deployments
+        - Supports both development and production scenarios
+        
+        DISCOVERY PROCESS:
+        1. Check if database already has tenants (avoid duplicates)
+        2. Scan setup directory for tenant folders
+        3. Create tenant records with unique API keys
+        4. Copy files to internal tracking structure
+        5. Generate API keys file for frontend consumption
+        """
         async with AsyncSessionLocal() as db:
             # Check if database already has tenants
             tenant_count = await self._get_tenant_count(db)

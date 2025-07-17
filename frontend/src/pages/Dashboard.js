@@ -1,3 +1,22 @@
+/**
+ * Dashboard Component - RAG System Overview and Management
+ * 
+ * This component demonstrates modern React patterns for data dashboards:
+ * 
+ * 1. REACT QUERY INTEGRATION: Efficient data fetching and caching
+ * 2. REAL-TIME UPDATES: Live statistics and file synchronization
+ * 3. ANIMATION EFFECTS: Smooth transitions using Framer Motion
+ * 4. ERROR HANDLING: Graceful error states and user feedback
+ * 5. MUTATION MANAGEMENT: Optimistic updates and cache invalidation
+ * 
+ * Core Dashboard Concepts Illustrated:
+ * - Multiple data sources aggregated into unified view
+ * - Real-time synchronization with backend state
+ * - Progressive loading states and error boundaries
+ * - User-initiated actions with immediate feedback
+ * - Responsive design with animated statistics cards
+ */
+
 import React from 'react';
 import { useQuery, useMutation, useQueryClient } from 'react-query';
 import { motion } from 'framer-motion';
@@ -6,6 +25,20 @@ import apiService from '../services/api';
 import { formatFileSize } from '../utils';
 
 const Dashboard = ({ apiKey }) => {
+  /**
+   * Dashboard data management using React Query
+   * 
+   * WHY REACT QUERY?
+   * - Intelligent caching reduces unnecessary API calls
+   * - Background refetching keeps data fresh
+   * - Automatic error handling and retry logic
+   * - Optimistic updates for better user experience
+   * 
+   * QUERY CONFIGURATION:
+   * - enabled: Only fetch when API key is available
+   * - retry: Limited retries to prevent endless loops
+   * - staleTime: Balance between freshness and performance
+   */
   const queryClient = useQueryClient();
 
   const { data: tenantInfo, isLoading: infoLoading, error: infoError } = useQuery(

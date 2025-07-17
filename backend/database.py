@@ -1,3 +1,22 @@
+"""
+Database Configuration - Async SQLAlchemy with Connection Pooling
+
+This module demonstrates production-ready database patterns:
+
+1. ASYNC OPERATIONS: Non-blocking database operations using asyncpg
+2. CONNECTION POOLING: Efficient connection reuse and management
+3. SESSION MANAGEMENT: Proper session lifecycle and cleanup
+4. TABLE CREATION: Automatic schema initialization
+5. DEPENDENCY INJECTION: FastAPI dependency pattern for database access
+
+Core Database Concepts Illustrated:
+- Async SQLAlchemy for high-performance database operations
+- Connection pooling to handle concurrent requests efficiently
+- Session management with proper resource cleanup
+- Dependency injection for clean separation of concerns
+- Production-ready configuration with monitoring and health checks
+"""
+
 import os
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
@@ -26,10 +45,34 @@ AsyncSessionLocal = async_sessionmaker(
 
 
 class Base(DeclarativeBase):
+    """
+    Base class for all database models - SQLAlchemy Declarative Base
+    
+    WHY DECLARATIVE BASE?
+    - Provides common functionality for all model classes
+    - Enables automatic table creation and schema management
+    - Supports relationship mapping and foreign key constraints
+    - Facilitates migration and schema evolution
+    """
     pass
 
 
 async def init_db():
+    """
+    Initialize database tables - Schema Creation
+    
+    WHY AUTOMATIC INITIALIZATION?
+    - Ensures database schema matches model definitions
+    - Simplifies deployment and development setup
+    - Creates tables, indexes, and constraints automatically
+    - Handles schema changes through model evolution
+    
+    INITIALIZATION PROCESS:
+    1. Import all models to register them with SQLAlchemy
+    2. Create async database connection
+    3. Run table creation synchronously within async context
+    4. Confirm successful table creation
+    """
     # Import all models to ensure they're registered
     import models
     
@@ -40,6 +83,27 @@ async def init_db():
 
 
 async def get_db():
+    """
+    Database session dependency - Connection Management
+    
+    WHY DEPENDENCY INJECTION?
+    - Provides clean separation between business logic and data access
+    - Ensures proper session lifecycle management
+    - Enables easy testing with mock databases
+    - Supports transaction management and rollback
+    
+    SESSION LIFECYCLE:
+    1. Create new session from connection pool
+    2. Yield session to request handler
+    3. Automatically close session after request
+    4. Handle exceptions and cleanup resources
+    
+    PRODUCTION BENEFITS:
+    - Connection pooling reduces overhead
+    - Proper cleanup prevents connection leaks
+    - Exception handling ensures system stability
+    - Async operations enable high concurrency
+    """
     async with AsyncSessionLocal() as session:
         try:
             yield session

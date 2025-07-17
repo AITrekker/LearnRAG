@@ -1,3 +1,22 @@
+"""
+File Processor Service - Multi-Format Text Extraction
+
+This service demonstrates robust file processing for RAG systems:
+
+1. MULTI-FORMAT SUPPORT: Extract text from PDF, Word, Excel, PowerPoint, and text files
+2. ENCODING HANDLING: Graceful fallback for different text encodings
+3. ERROR RESILIENCE: Robust error handling for corrupted or unsupported files
+4. ASYNC PROCESSING: Non-blocking file operations for better performance
+5. CONTENT NORMALIZATION: Clean and standardize extracted text
+
+Core File Processing Concepts Illustrated:
+- Format detection using MIME types and file extensions
+- Library-specific extraction techniques for different formats
+- Text cleaning and normalization for consistent RAG input
+- Error handling that preserves system stability
+- Async/await patterns for I/O intensive operations
+"""
+
 import asyncio
 from pathlib import Path
 from typing import Optional
@@ -9,10 +28,39 @@ from pptx import Presentation
 
 
 class FileProcessor:
-    """Service for extracting text content from various file types"""
+    """
+    Service for extracting text content from various file types
+    
+    Key concepts demonstrated:
+    - Multi-format text extraction using specialized libraries
+    - Encoding detection and fallback strategies
+    - Error resilience for production file processing
+    - Async operations for non-blocking I/O
+    - Content normalization for consistent RAG input
+    """
 
     async def extract_text(self, file_path: Path, content_type: str) -> str:
-        """Extract text content from file based on content type"""
+        """
+        Extract text content from file based on content type - Format Router
+        
+        WHY MULTI-FORMAT SUPPORT?
+        - RAG systems need to process diverse document types
+        - Each format requires specialized extraction techniques
+        - Consistent text output enables uniform embedding generation
+        - Robust error handling prevents system crashes
+        
+        SUPPORTED FORMATS:
+        - Plain text: Direct file reading with encoding fallback
+        - PDF: PyPDF2 for page-by-page text extraction
+        - Word: python-docx for structured document parsing
+        - Excel: openpyxl for spreadsheet data extraction
+        - PowerPoint: python-pptx for slide text extraction
+        
+        ERROR HANDLING:
+        - Graceful degradation for unsupported formats
+        - Encoding fallback for text files
+        - Empty string return for extraction failures
+        """
         try:
             if content_type == 'text/plain':
                 return await self._extract_text_file(file_path)

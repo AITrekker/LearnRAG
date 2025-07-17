@@ -1,6 +1,20 @@
 """
-Unified models for LearnRAG API
-Clean, minimal models for database and API with no duplication
+Unified Models for LearnRAG API - Database and API Schema Definitions
+
+Teaching Purpose: This module demonstrates clean data modeling patterns:
+
+1. DATABASE MODELS: SQLAlchemy models for persistent data storage
+2. API MODELS: Pydantic models for request/response validation
+3. SCHEMA CONSISTENCY: Unified approach to data validation
+4. RELATIONSHIP MAPPING: Foreign keys and cascade operations
+5. TYPE SAFETY: Strong typing for development and runtime safety
+
+Core Modeling Concepts Illustrated:
+- Separation of database persistence and API serialization
+- Relationship modeling with foreign keys and cascades
+- Request/response validation with Pydantic
+- Configuration defaults and field validation
+- Multi-tenant data isolation patterns
 """
 from pydantic import BaseModel, Field
 from typing import List, Optional, Dict, Any
@@ -13,7 +27,7 @@ from sqlalchemy.sql import func
 from sqlalchemy.dialects.postgresql import JSONB
 from pgvector.sqlalchemy import Vector
 from database import Base
-from config import DEFAULT_EMBEDDING_MODEL, DEFAULT_CHUNKING_STRATEGY, DEFAULT_CHUNK_SIZE, DEFAULT_CHUNK_OVERLAP, DEFAULT_LLM_MODEL, DEFAULT_TOP_K, DEFAULT_MAX_ANSWER_LENGTH, DEFAULT_TEMPERATURE, DEFAULT_CONTEXT_CHUNKS, DEFAULT_REPETITION_PENALTY, DEFAULT_TOP_P, DEFAULT_MIN_SIMILARITY
+from config import DEFAULT_EMBEDDING_MODEL, DEFAULT_CHUNKING_STRATEGY, DEFAULT_CHUNK_SIZE, DEFAULT_CHUNK_OVERLAP, DEFAULT_LLM_MODEL, DEFAULT_TOP_K, DEFAULT_MAX_ANSWER_LENGTH, DEFAULT_TEMPERATURE, DEFAULT_CONTEXT_CHUNKS, DEFAULT_REPETITION_PENALTY, DEFAULT_TOP_P, DEFAULT_MIN_SIMILARITY, DEFAULT_PROMPT_TEMPLATE
 
 # =============================================================================
 # DATABASE MODELS (SQLAlchemy)
@@ -116,6 +130,7 @@ class AnswerRequest(BaseModel):
     min_similarity: float = Field(default=DEFAULT_MIN_SIMILARITY, description="Minimum similarity threshold for chunks")
     # Generation settings (LLM-specific)
     answer_model: str = Field(default=DEFAULT_LLM_MODEL, description="LLM model for answer generation")
+    prompt_template: str = Field(default=DEFAULT_PROMPT_TEMPLATE, description="Prompt template for answer generation")
     temperature: float = Field(default=DEFAULT_TEMPERATURE, description="Generation temperature (0.1=factual, 1.0=creative)")
     max_length: int = Field(default=DEFAULT_MAX_ANSWER_LENGTH, description="Maximum answer length in tokens")
     context_chunks: int = Field(default=DEFAULT_CONTEXT_CHUNKS, description="Number of top chunks to use for context")
@@ -145,19 +160,25 @@ class AnswerResponse(BaseModel):
     sources: List[SearchResult]
     generation_time: float
     model_used: str
+    prompt_template: str
     fallback_used: bool = Field(default=False)
     error: Optional[str] = Field(None)
 
 # Embedding models
 class GenerateEmbeddingsRequest(BaseModel):
     """
-    Request to generate embeddings for RAG system.
+    Request to generate embeddings for RAG system - Core RAG Parameters
     
-    Teaching Note: This demonstrates the core parameters needed for RAG:
+    WHY THESE PARAMETERS?
     - embedding_model: Which neural network model to use for text → vector conversion
     - chunking_strategy: How to split documents (fixed_size, sentence, recursive)
     - chunk_size: How many tokens per chunk (balance between context vs precision)
     - chunk_overlap: Overlap between chunks to preserve context across boundaries
+    
+    PARAMETER TRADE-OFFS:
+    - Larger chunks: More context but less precision in retrieval
+    - Smaller chunks: More precise but may lose context
+    - More overlap: Better context preservation but more storage
     """
     embedding_model: Optional[str] = Field(None, description="Embedding model")
     chunking_strategy: Optional[str] = Field(None, description="Chunking strategy")

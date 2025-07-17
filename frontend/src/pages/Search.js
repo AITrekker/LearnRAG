@@ -27,8 +27,6 @@ import { DEFAULTS } from '../config';
 
 const Search = ({ apiKey }) => {
   // UI Layout state
-  const [layoutMode, setLayoutMode] = useState('split'); // 'split', 'tabbed', 'expandable'
-  const [activeTab, setActiveTab] = useState('retrieval'); // 'retrieval', 'generation'
   const [retrievalExpanded, setRetrievalExpanded] = useState(true);
   const [generationExpanded, setGenerationExpanded] = useState(false);
   
@@ -70,6 +68,15 @@ const Search = ({ apiKey }) => {
     async () => {
       const apiService = (await import('../services/api')).default;
       return apiService.getLlmModels();
+    },
+    { enabled: !!apiKey }
+  );
+
+  const { data: promptTemplates } = useQuery(
+    'promptTemplates',
+    async () => {
+      const apiService = (await import('../services/api')).default;
+      return apiService.getPromptTemplates();
     },
     { enabled: !!apiKey }
   );
@@ -147,7 +154,7 @@ const Search = ({ apiKey }) => {
   
   // Render generation settings
   const renderGenerationSettings = () => (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
       {/* LLM Model Selection */}
       <div>
         <label className="block text-sm font-medium text-gray-700 mb-2">LLM Model</label>
@@ -162,6 +169,25 @@ const Search = ({ apiKey }) => {
             </option>
           ))}
         </select>
+      </div>
+
+      {/* Prompt Template */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-2">Prompt Template</label>
+        <select
+          value={searchConfig.prompt_template || 'factual'}
+          onChange={(e) => updateConfig({ prompt_template: e.target.value })}
+          className="w-full p-2 pr-8 border border-gray-300 rounded-lg text-sm"
+        >
+          {promptTemplates?.templates?.map((template) => (
+            <option key={template.id} value={template.id} title={template.description}>
+              {template.name}
+            </option>
+          ))}
+        </select>
+        <div className="text-xs text-gray-500 mt-1">
+          {promptTemplates?.templates?.find(t => t.id === (searchConfig.prompt_template || 'factual'))?.description}
+        </div>
       </div>
 
       {/* Temperature */}
@@ -245,119 +271,50 @@ const Search = ({ apiKey }) => {
         />
       )}
 
-      {/* Layout Selector */}
+      {/* Configuration */}
       <div className="card">
-        <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center">
-            <Settings className="w-5 h-5 text-primary-600 mr-2" />
-            <h3 className="text-lg font-semibold text-gray-900">RAG Configuration</h3>
-          </div>
-          <div className="flex items-center space-x-2">
-            <span className="text-sm text-gray-600">Layout:</span>
-            <select
-              value={layoutMode}
-              onChange={(e) => setLayoutMode(e.target.value)}
-              className="text-sm border border-gray-300 rounded px-2 py-1"
-            >
-              <option value="split">Split Panel</option>
-              <option value="tabbed">Tabbed</option>
-              <option value="expandable">Expandable</option>
-            </select>
-          </div>
+        <div className="flex items-center mb-4">
+          <Settings className="w-5 h-5 text-primary-600 mr-2" />
+          <h3 className="text-lg font-semibold text-gray-900">RAG Configuration</h3>
         </div>
 
-        {/* Split Panel Layout */}
-        {layoutMode === 'split' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="space-y-4">
+        <div className="space-y-4">
+          <div className="border border-gray-200 rounded-lg">
+            <button
+              onClick={() => setRetrievalExpanded(!retrievalExpanded)}
+              className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50 transition-colors"
+            >
               <div className="flex items-center">
                 <Database className="w-4 h-4 text-blue-600 mr-2" />
                 <h4 className="font-medium text-gray-900">Retrieval Settings</h4>
               </div>
-              {renderRetrievalSettings()}
-            </div>
-            <div className="space-y-4">
+              {retrievalExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+            {retrievalExpanded && (
+              <div className="p-4 pt-0 border-t border-gray-100">
+                {renderRetrievalSettings()}
+              </div>
+            )}
+          </div>
+          
+          <div className="border border-gray-200 rounded-lg">
+            <button
+              onClick={() => setGenerationExpanded(!generationExpanded)}
+              className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50 transition-colors"
+            >
               <div className="flex items-center">
                 <Brain className="w-4 h-4 text-green-600 mr-2" />
                 <h4 className="font-medium text-gray-900">Generation Settings</h4>
               </div>
-              {renderGenerationSettings()}
-            </div>
+              {generationExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+            {generationExpanded && (
+              <div className="p-4 pt-0 border-t border-gray-100">
+                {renderGenerationSettings()}
+              </div>
+            )}
           </div>
-        )}
-
-        {/* Tabbed Layout */}
-        {layoutMode === 'tabbed' && (
-          <div>
-            <div className="flex border-b border-gray-200 mb-4">
-              <button
-                onClick={() => setActiveTab('retrieval')}
-                className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
-                  activeTab === 'retrieval'
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                <Database className="w-4 h-4 inline mr-2" />
-                Retrieval Settings
-              </button>
-              <button
-                onClick={() => setActiveTab('generation')}
-                className={`px-4 py-2 font-medium text-sm border-b-2 transition-colors ${
-                  activeTab === 'generation'
-                    ? 'border-green-500 text-green-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700'
-                }`}
-              >
-                <Brain className="w-4 h-4 inline mr-2" />
-                Generation Settings
-              </button>
-            </div>
-            {activeTab === 'retrieval' && renderRetrievalSettings()}
-            {activeTab === 'generation' && renderGenerationSettings()}
-          </div>
-        )}
-
-        {/* Expandable Layout */}
-        {layoutMode === 'expandable' && (
-          <div className="space-y-4">
-            <div className="border border-gray-200 rounded-lg">
-              <button
-                onClick={() => setRetrievalExpanded(!retrievalExpanded)}
-                className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50 transition-colors"
-              >
-                <div className="flex items-center">
-                  <Database className="w-4 h-4 text-blue-600 mr-2" />
-                  <h4 className="font-medium text-gray-900">Retrieval Settings</h4>
-                </div>
-                {retrievalExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              </button>
-              {retrievalExpanded && (
-                <div className="p-4 pt-0 border-t border-gray-100">
-                  {renderRetrievalSettings()}
-                </div>
-              )}
-            </div>
-            
-            <div className="border border-gray-200 rounded-lg">
-              <button
-                onClick={() => setGenerationExpanded(!generationExpanded)}
-                className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50 transition-colors"
-              >
-                <div className="flex items-center">
-                  <Brain className="w-4 h-4 text-green-600 mr-2" />
-                  <h4 className="font-medium text-gray-900">Generation Settings</h4>
-                </div>
-                {generationExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              </button>
-              {generationExpanded && (
-                <div className="p-4 pt-0 border-t border-gray-100">
-                  {renderGenerationSettings()}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+        </div>
       </div>
 
       {/* Search Interface */}
