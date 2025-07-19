@@ -73,10 +73,22 @@ async def init_db():
     3. Run table creation synchronously within async context
     4. Confirm successful table creation
     """
-    # Import all models to ensure they're registered
-    import models
+    # Import all models to ensure they're registered with SQLAlchemy metadata
+    from models import (
+        Tenant, File, Embedding, DocumentSummary, SectionSummary, 
+        TenantEmbeddingSettings, RagSession
+    )
+    
+    # Verify models are loaded
+    print(f"📋 Registering models: {[cls.__name__ for cls in Base.registry._class_registry.values() if hasattr(cls, '__tablename__')]}")
     
     async with engine.begin() as conn:
+        # Debug: Show what tables will be created
+        print("🔍 Tables to be created:")
+        for table_name, table in Base.metadata.tables.items():
+            columns = [f"{col.name}({col.type})" for col in table.columns]
+            print(f"   {table_name}: {columns}")
+        
         # Create all tables
         await conn.run_sync(Base.metadata.create_all)
         print("📊 Database tables created successfully")

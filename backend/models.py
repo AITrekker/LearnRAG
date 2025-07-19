@@ -61,6 +61,7 @@ class File(Base):
     
     tenant = relationship("Tenant", back_populates="files")
     embeddings = relationship("Embedding", back_populates="file", cascade="all, delete-orphan")
+    document_summary = relationship("DocumentSummary", back_populates="file", uselist=False, cascade="all, delete-orphan")
     
     __table_args__ = (UniqueConstraint('tenant_id', 'file_path'),)
 
@@ -71,6 +72,8 @@ class Embedding(Base):
     file_id = Column(Integer, ForeignKey("files.id", ondelete="CASCADE"), nullable=False)
     chunk_index = Column(Integer, nullable=False)
     chunk_text = Column(Text, nullable=False)
+    chunk_context = Column(Text)  # Hierarchical context: document + section + chunk  
+    section_id = Column(Integer, ForeignKey("section_summaries.id"), nullable=True)  # Link to section
     embedding_model = Column(String(100), nullable=False)
     chunking_strategy = Column(String(50), nullable=False)
     embedding = Column(Vector)
@@ -79,7 +82,55 @@ class Embedding(Base):
     
     file = relationship("File", back_populates="embeddings")
     
-    __table_args__ = (UniqueConstraint('file_id', 'chunk_index', 'embedding_model', 'chunking_strategy'),)
+    __table_args__ = (
+        UniqueConstraint('file_id', 'chunk_index', 'embedding_model', 'chunking_strategy'),
+        # Foreign key constraint will be added after section_summaries table exists
+    )
+
+class DocumentSummary(Base):
+    """
+    Document-level summaries for hierarchical RAG - High-Level Overview
+    
+    WHY DOCUMENT SUMMARIES?
+    - Enables quick relevance assessment before detailed search
+    - Captures main themes, characters, and concepts
+    - Improves query routing to relevant documents
+    - Reduces search space for complex multi-document queries
+    """
+    __tablename__ = "document_summaries"
+    
+    id = Column(Integer, primary_key=True)
+    file_id = Column(Integer, ForeignKey("files.id", ondelete="CASCADE"), nullable=False)
+    summary_text = Column(Text, nullable=False)
+    summary_type = Column(String(20), default="document")  # document, section, chunk_context
+    created_at = Column(DateTime, default=func.now())
+    
+    file = relationship("File", back_populates="document_summary")
+    sections = relationship("SectionSummary", back_populates="document", cascade="all, delete-orphan")
+
+class SectionSummary(Base):
+    """
+    Section-level summaries for hierarchical RAG - Mid-Level Abstraction
+    
+    WHY SECTION SUMMARIES?
+    - Bridges gap between document overview and detailed chunks
+    - Enables hierarchical search: document → section → chunk
+    - Improves precision for queries about specific topics
+    - Reduces search space by filtering irrelevant sections
+    """
+    __tablename__ = "section_summaries"
+    
+    id = Column(Integer, primary_key=True)
+    document_summary_id = Column(Integer, ForeignKey("document_summaries.id", ondelete="CASCADE"), nullable=False)
+    section_number = Column(Integer, nullable=False)
+    title = Column(String(200))
+    summary_text = Column(Text, nullable=False)
+    start_position = Column(Integer, nullable=False)  # Character position in original document
+    end_position = Column(Integer, nullable=False)
+    content_length = Column(Integer, nullable=False)
+    created_at = Column(DateTime, default=func.now())
+    
+    document = relationship("DocumentSummary", back_populates="sections")
 
 class TenantEmbeddingSettings(Base):
     __tablename__ = "tenant_embedding_settings"
@@ -254,3 +305,33 @@ class EmbeddingSettingsResponse(BaseModel):
     chunk_size: int
     chunk_overlap: int
     updated_at: Optional[datetime] = None
+
+# Hierarchical Summary Models
+class SectionSummaryInfo(BaseModel):
+    """Section summary information for API responses"""
+    section_number: int
+    title: Optional[str]
+    summary_text: str
+    start_position: int
+    end_position: int
+    content_length: int
+
+class DocumentSummaryInfo(BaseModel):
+    """Document summary information for API responses"""
+    file_id: int
+    filename: str
+    summary_text: str
+    sections: List[SectionSummaryInfo] = Field(default_factory=list)
+    created_at: datetime
+
+class HierarchicalSearchResult(BaseModel):
+    """Enhanced search result with hierarchical context"""
+    chunk_text: str
+    chunk_context: Optional[str]  # Hierarchical context
+    similarity: float
+    file_name: str
+    file_path: str
+    chunk_index: int
+    section_title: Optional[str] = None
+    document_summary: Optional[str] = None
+    chunk_metadata: Dict[str, Any] = Field(default_factory=dict)

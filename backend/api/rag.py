@@ -6,7 +6,7 @@ from typing import List
 from database import get_db
 from models import Tenant, File, Embedding, RagSession
 from models import SearchRequest, AnswerRequest, CompareRequest
-from models import SearchResponse, AnswerResponse, SearchResult
+from models import SearchResponse, AnswerResponse, SearchResult, HierarchicalSearchResult
 from api.auth import get_current_tenant
 from services.rag_service import RagService
 from services.llm_service import llm_service
@@ -43,6 +43,34 @@ async def search(
             request.top_k,
             db
         )
+    elif request.rag_technique == "hierarchical_search":
+        # Convert hierarchical results to regular search results for API compatibility
+        hierarchical_results = await rag_service.hierarchical_search(
+            request.query,
+            query_embedding,
+            tenant.id,
+            request.embedding_model,
+            request.chunking_strategy,
+            request.top_k,
+            db
+        )
+        # Convert to SearchResult format for existing API
+        search_results = []
+        for hr in hierarchical_results:
+            search_result = SearchResult(
+                chunk_text=hr.chunk_text,
+                similarity=hr.similarity,
+                file_name=hr.file_name,
+                file_path=hr.file_path,
+                chunk_index=hr.chunk_index,
+                chunk_metadata={
+                    **hr.chunk_metadata,
+                    "section_title": hr.section_title,
+                    "document_summary": hr.document_summary,
+                    "chunk_context": hr.chunk_context
+                }
+            )
+            search_results.append(search_result)
     else:
         # Default to similarity search
         search_results = await rag_service.similarity_search(

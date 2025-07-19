@@ -34,17 +34,35 @@ def main():
         sys.exit(1)
     
     # Step 1: Stop all containers
-    if not run_command("docker-compose down", "Stopping all containers"):
+    if not run_command("docker compose down", "Stopping all containers"):
         print("⚠️  Continuing anyway...")
     
-    # Step 2: Remove containers and volumes
-    if not run_command("docker-compose down --volumes", "Removing containers and volumes"):
+    # Step 2: Remove containers and volumes (most thorough approach)
+    if not run_command("docker compose down -v", "Removing containers and volumes"):
         print("⚠️  Continuing anyway...")
     
-    # Step 3: Try to remove the specific postgres volume (ignore errors)
-    run_command("docker volume rm learnrag_postgres_data", "Removing postgres volume", ignore_errors=True)
+    # Step 3: Force remove any remaining volumes with project prefix
+    project_name = os.path.basename(os.getcwd()).lower()
     
-    # Step 4: Clean up any dangling volumes
+    print(f"🔍 Project name detected: {project_name}")
+    
+    # Try to remove volumes with different naming patterns
+    volume_patterns = [
+        f"{project_name}_postgres_data",
+        "learnrag_postgres_data", 
+        f"{project_name}_models_cache",
+        f"{project_name}_huggingface_cache",
+        f"{project_name}_transformers_cache"
+    ]
+    
+    for volume in volume_patterns:
+        run_command(f"docker volume rm {volume}", f"Removing volume {volume}", ignore_errors=True)
+    
+    # Step 4: Nuclear option - remove ALL volumes containing project name
+    run_command(f"docker volume ls -q | grep {project_name} | xargs -r docker volume rm", 
+                f"Removing all {project_name} volumes", ignore_errors=True)
+    
+    # Step 5: Clean up any dangling volumes
     run_command("docker volume prune -f", "Cleaning up dangling volumes", ignore_errors=True)
     
     # Step 5: Rebuild and start
