@@ -48,9 +48,10 @@ RAG revolutionizes how AI systems access and utilize knowledge by combining:
 ### 📊 **Technical Stack Highlights**
 - **Backend**: FastAPI + PostgreSQL + pgvector for vector operations
 - **Frontend**: React 18 + React Query + Framer Motion animations
-- **AI Models**: 5 embedding models (384d-768d) + Google Flan-T5 for answers
+- **AI Models**: 5 embedding models (384d-768d) + 5 LLM models for answers
+- **Architecture**: Modular services (RAG, Embedding, LLM) with 12 focused components
 - **Infrastructure**: Docker with GPU/CPU deployment options
-- **Testing**: 22/22 comprehensive API tests passing
+- **Testing**: 31/32 comprehensive API tests passing
 
 ---
 
@@ -144,6 +145,7 @@ docker-compose -f docker-compose.windows.yml up --build
 **RAG Search Techniques:**
 - **Similarity Search**: Pure semantic search using vector embeddings (cosine distance)
 - **Hybrid Search**: Combines semantic similarity (70%) + keyword matching (30%) with intelligent deduplication
+- **Hierarchical Search**: Multi-level search using document/section summaries for better context
 
 ---
 
@@ -168,6 +170,34 @@ docker-compose -f docker-compose.windows.yml up --build
                     │ • Version Management │
                     └──────────────────────┘
 ```
+
+### **Modular Service Architecture** 🧩
+```
+services/
+├── rag/                    # RAG Pipeline (544 lines → 4 focused modules)
+│   ├── __init__.py         # Main interface (114 lines)
+│   ├── core_search.py      # Basic similarity search (120 lines)
+│   ├── hybrid_search.py    # Semantic + keyword search (185 lines)
+│   ├── hierarchical_search.py  # Multi-level search (140 lines)
+│   └── result_converter.py     # Result formatting (85 lines)
+├── embedding/              # Embedding System (440 lines → 4 focused modules)
+│   ├── __init__.py         # Main interface (65 lines)
+│   ├── model_manager.py    # Model loading & caching (68 lines)
+│   ├── chunking_strategies.py  # Text chunking methods (150 lines)
+│   └── file_processor.py      # File processing & delta sync (250 lines)
+└── llm/                    # LLM System (496 lines → 4 focused modules)
+    ├── __init__.py         # Main interface (68 lines)
+    ├── model_manager.py    # Device detection & loading (200 lines)
+    ├── answer_generator.py # Core inference logic (200 lines)
+    └── prompt_engineer.py  # Template management (96 lines)
+```
+
+**Benefits of Modular Architecture:**
+- **Educational Clarity**: Each module teaches one focused concept
+- **Maintainability**: Easy to modify individual components
+- **Testability**: Components can be tested independently
+- **Scalability**: Services can be deployed separately if needed
+- **Error Resilience**: Graceful degradation when components fail
 
 ### **API Endpoints**
 - **Auth**: `/api/auth/validate` - API key validation
@@ -248,10 +278,12 @@ docker-compose -f docker-compose.windows.yml up --build
 ```
 
 ### **Code Learning Path**
-1. **`/backend/services/`** - Core RAG implementation
-2. **`/frontend/src/hooks/`** - React patterns for RAG UIs
-3. **`/backend/models.py`** - Database schema and API models
-4. **`/frontend/src/pages/`** - Complete user workflows
+1. **`/backend/services/rag/`** - Modular RAG implementation (4 components)
+2. **`/backend/services/embedding/`** - Modular embedding system (4 components)
+3. **`/backend/services/llm/`** - Modular LLM system (4 components)
+4. **`/frontend/src/hooks/`** - React patterns for RAG UIs
+5. **`/backend/models.py`** - Database schema and API models
+6. **`/frontend/src/pages/`** - Complete user workflows
 
 ---
 

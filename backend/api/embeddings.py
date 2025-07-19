@@ -64,10 +64,16 @@ async def _generate_embeddings_background(
                 chunk_size, chunk_overlap, tenant_name
             )
             await db.commit()
-        except Exception as e:
+        except ValueError as e:
+            # Handle validation errors (like invalid model names) gracefully
             await db.rollback()
-            print(f"Error in background embedding generation: {e}")
-            raise
+            print(f"Validation error in background embedding generation: {e}")
+            print(f"Skipping embedding generation for tenant {tenant_name} due to invalid parameters")
+        except Exception as e:
+            # Handle any other errors
+            await db.rollback()
+            print(f"Unexpected error in background embedding generation: {e}")
+            print(f"Failed to generate embeddings for tenant {tenant_name}")
         finally:
             await db.close()
 
@@ -88,22 +94,13 @@ async def generate_embeddings(
     )
     settings = settings_result.scalar_one_or_none()
     
-    # Use request params or fall back to tenant settings
-    embedding_model = request.embedding_model
-    chunking_strategy = request.chunking_strategy
-    chunk_size = request.chunk_size
-    chunk_overlap = request.chunk_overlap
+    # Use request params or fall back to tenant settings, then to config defaults
+    from config import DEFAULT_EMBEDDING_MODEL, DEFAULT_CHUNKING_STRATEGY, DEFAULT_CHUNK_SIZE, DEFAULT_CHUNK_OVERLAP
     
-    if settings:
-        # Use tenant settings as defaults if request uses defaults
-        if request.embedding_model == "sentence-transformers/all-MiniLM-L6-v2":
-            embedding_model = settings.embedding_model
-        if request.chunking_strategy == "fixed_size":
-            chunking_strategy = settings.chunking_strategy
-        if request.chunk_size == 512:
-            chunk_size = settings.chunk_size
-        if request.chunk_overlap == 50:
-            chunk_overlap = settings.chunk_overlap
+    embedding_model = request.embedding_model or (settings.embedding_model if settings else None) or DEFAULT_EMBEDDING_MODEL
+    chunking_strategy = request.chunking_strategy or (settings.chunking_strategy if settings else None) or DEFAULT_CHUNKING_STRATEGY
+    chunk_size = request.chunk_size or (settings.chunk_size if settings else None) or DEFAULT_CHUNK_SIZE
+    chunk_overlap = request.chunk_overlap or (settings.chunk_overlap if settings else None) or DEFAULT_CHUNK_OVERLAP
     
     embedding_service = EmbeddingService()
     
@@ -228,9 +225,9 @@ async def get_embedding_status(
             file_id=file_id,
             filename=file.filename,
             has_embeddings=False,
-            embedding_models=[],
-            chunking_strategies=[],
-            total_chunks=0,
+            chunk_count=0,
+            embedding_model=None,
+            chunking_strategy=None,
             last_updated=None
         )
     
@@ -242,9 +239,9 @@ async def get_embedding_status(
         file_id=file_id,
         filename=file.filename,
         has_embeddings=True,
-        embedding_models=models,
-        chunking_strategies=strategies,
-        total_chunks=len(embeddings),
+        chunk_count=len(embeddings),
+        embedding_model=models[0] if models else None,
+        chunking_strategy=strategies[0] if strategies else None,
         last_updated=last_updated
     )
 

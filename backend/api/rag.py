@@ -57,7 +57,7 @@ async def search(
         )
         # Use ResultConverter for clean conversion
         converter = ResultConverter()
-        search_results = converter.hierarchical_to_search_results(hierarchical_results)
+        search_results = [converter.to_search_result(hr) for hr in hierarchical_results]
     else:
         # Default to similarity search
         search_results = await rag_service.similarity_search(
