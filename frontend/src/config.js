@@ -28,7 +28,7 @@ export const DEFAULTS = {
   CHUNKING_STRATEGY: process.env.REACT_APP_DEFAULT_CHUNKING_STRATEGY || 'fixed_size',
   CHUNK_SIZE: parseInt(process.env.REACT_APP_DEFAULT_CHUNK_SIZE || '512'),
   CHUNK_OVERLAP: parseInt(process.env.REACT_APP_DEFAULT_CHUNK_OVERLAP || '50'),
-  RAG_TECHNIQUE: process.env.REACT_APP_DEFAULT_RAG_TECHNIQUE || 'similarity_search',
+  RAG_TECHNIQUE: process.env.REACT_APP_DEFAULT_RAG_TECHNIQUE || 'hierarchical_search',
   TOP_K: parseInt(process.env.REACT_APP_DEFAULT_TOP_K || '5'),
   MAX_ANSWER_LENGTH: parseInt(process.env.REACT_APP_DEFAULT_MAX_ANSWER_LENGTH || '200'),
   TEMPERATURE: parseFloat(process.env.REACT_APP_DEFAULT_TEMPERATURE || '0.7'),

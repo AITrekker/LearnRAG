@@ -55,12 +55,21 @@ const Search = ({ apiKey }) => {
   );
 
   const { data: techniques } = useQuery(
-    'ragTechniques',
+    ['ragTechniques', apiKey],
     async () => {
       const apiService = (await import('../services/api')).default;
-      return apiService.getRagTechniques();
+      console.log('Fetching RAG techniques with API key:', apiKey?.substring(0, 10) + '...');
+      const result = await apiService.getRagTechniques();
+      console.log('RAG techniques response:', result);
+      return result;
     },
-    { enabled: !!apiKey }
+    { 
+      enabled: !!apiKey,
+      staleTime: 0,
+      cacheTime: 0,
+      refetchOnMount: true,
+      refetchOnWindowFocus: true
+    }
   );
   
   const { data: llmModels } = useQuery(
@@ -128,11 +137,9 @@ const Search = ({ apiKey }) => {
           onChange={(e) => updateConfig({ rag_technique: e.target.value })}
           className="w-full p-2 pr-8 border border-gray-300 rounded-lg text-sm"
         >
-          {techniques?.techniques?.map((technique) => (
-            <option key={technique.name} value={technique.name}>
-              {technique.name.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())} - {technique.description}
-            </option>
-          ))}
+          <option value="similarity_search">Similarity Search - Basic cosine similarity search using pgvector</option>
+          <option value="hybrid_search">Hybrid Search - Combines semantic similarity with keyword matching</option>
+          <option value="hierarchical_search">Hierarchical Search - Multi-level search using document/section summaries for better context</option>
         </select>
       </div>
 

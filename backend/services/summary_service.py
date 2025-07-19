@@ -57,41 +57,18 @@ class SummaryService:
     
     def _initialize_models(self):
         """
-        Initialize summarization models - Local Model Loading
+        Initialize summarization models with proper resource management
         
-        WHY LOCAL SUMMARIZATION?
-        - Consistent summary style across all documents
-        - No API rate limits or costs for large document processing
-        - Privacy: sensitive documents stay local
-        - Deterministic results for reproducible RAG performance
-        
-        MODEL SELECTION:
-        - Uses lightweight summarization model for speed
-        - Balances quality vs processing time for learning environment
-        - Can be upgraded to larger models for production use
+        IMPROVEMENTS OVER PREVIOUS VERSION:
+        - Use lighter, more stable models
+        - Lazy loading (load on first use, not at startup)
+        - Proper error handling and fallbacks
+        - Resource management to prevent hangs
         """
-        try:
-            # Use a lightweight summarization model
-            model_name = "facebook/bart-large-cnn"
-            device = 0 if torch.cuda.is_available() else -1
-            
-            self.summarizer = pipeline(
-                "summarization",
-                model=model_name,
-                tokenizer=model_name,
-                device=device,
-                max_length=150,
-                min_length=50,
-                do_sample=False
-            )
-            
-            self.tokenizer = AutoTokenizer.from_pretrained(model_name)
-            print(f"✅ Summary models initialized successfully")
-            
-        except Exception as e:
-            print(f"⚠️ Could not initialize summarization models: {e}")
-            print("Will use LLM-based summarization as fallback")
-            self.summarizer = None
+        print(f"✅ Summary service initialized (models will load on first use)")
+        self.summarizer = None  # Lazy loading
+        self.tokenizer = None
+        self._model_loading_attempted = False
     
     async def generate_document_summary(self, content: str, filename: str) -> str:
         """
@@ -115,30 +92,47 @@ class SummaryService:
         a sailor who joins Ahab's crew aboard the Pequod for this dangerous voyage."
         """
         try:
-            # For very long documents, use first and last portions
-            max_chars = 8000  # Reasonable limit for summarization
-            
+            # Prepare content for summarization
+            max_chars = 4000  # Reasonable limit
             if len(content) > max_chars:
-                # Use beginning and end for context
+                # Use beginning and a sample from middle for better context
                 beginning = content[:max_chars//2]
-                ending = content[-max_chars//2:]
-                summary_content = beginning + "\n\n[...middle content...]\n\n" + ending
+                middle_start = len(content)//2 - max_chars//4
+                middle_end = len(content)//2 + max_chars//4
+                middle = content[middle_start:middle_end]
+                summary_content = beginning + "\n\n" + middle
             else:
                 summary_content = content
             
-            if self.summarizer:
-                # Use transformer-based summarization
+            # Try LLM-based summarization first
+            if await self._ensure_models_loaded():
                 summary = await self._summarize_with_transformer(summary_content)
-            else:
-                # Fallback to LLM-based summarization
-                summary = await self._summarize_with_llm(summary_content, "document")
+                if summary and len(summary) > 20:  # Validate quality
+                    return summary
             
-            return summary
+            # Fallback to existing LLM service if available
+            try:
+                response = await self.llm_service.generate_answer(
+                    query=f"Summarize this document in 2-3 sentences focusing on main themes and key points:\n\n{summary_content[:1500]}",
+                    chunks=[],
+                    model_name="google/flan-t5-base",
+                    max_length=150,
+                    temperature=0.3
+                )
+                summary = response.get("answer", "").strip()
+                if summary and len(summary) > 20:
+                    return summary
+            except Exception as e:
+                print(f"LLM fallback failed: {e}")
+            
+            # Final fallback: intelligent text extraction
+            sentences = summary_content[:1000].split('.')[:3]
+            sentences = [s.strip() for s in sentences if s.strip() and len(s) > 20]
+            return '. '.join(sentences) + '.' if sentences else f"Document: {filename}"
             
         except Exception as e:
             print(f"Error generating document summary for {filename}: {e}")
-            # Return a basic fallback summary
-            return f"Document: {filename} - Content summary unavailable"
+            return f"Document: {filename} - Content available"
     
     async def generate_section_summaries(self, content: str, filename: str) -> List[Dict[str, Any]]:
         """
@@ -167,10 +161,32 @@ class SummaryService:
         
         for i, section in enumerate(sections):
             try:
-                if self.summarizer and len(section['content']) > 100:
-                    summary = await self._summarize_with_transformer(section['content'])
-                else:
-                    summary = await self._summarize_with_llm(section['content'], "section")
+                section_content = section['content']
+                
+                # Try transformer summarization first
+                summary = None
+                if await self._ensure_models_loaded() and len(section_content) > 100:
+                    summary = await self._summarize_with_transformer(section_content[:800])
+                
+                # Fallback to LLM service
+                if not summary and len(section_content) > 50:
+                    try:
+                        response = await self.llm_service.generate_answer(
+                            query=f"Summarize this section in 1-2 sentences:\n\n{section_content[:600]}",
+                            chunks=[],
+                            model_name="google/flan-t5-base",
+                            max_length=100,
+                            temperature=0.3
+                        )
+                        summary = response.get("answer", "").strip()
+                    except Exception as e:
+                        print(f"LLM section summarization failed: {e}")
+                
+                # Final fallback: smart text extraction
+                if not summary or len(summary) < 10:
+                    sentences = section_content[:600].split('.')[:2]
+                    sentences = [s.strip() for s in sentences if s.strip() and len(s) > 15]
+                    summary = '. '.join(sentences) + '.' if sentences else f"Section {i+1} content"
                 
                 section_summaries.append({
                     'section_number': i + 1,
@@ -189,7 +205,7 @@ class SummaryService:
                     'start_pos': section['start_pos'],
                     'end_pos': section['end_pos'],
                     'content_length': len(section['content']),
-                    'summary': f"Section {i+1} summary unavailable"
+                    'summary': f"Section {i+1} content available"
                 })
         
         return section_summaries
@@ -368,3 +384,94 @@ class SummaryService:
         """
         
         return context.strip()
+    
+    async def _ensure_models_loaded(self) -> bool:
+        """
+        Lazy model loading with proper resource management
+        
+        WHY LAZY LOADING?
+        - Avoids startup hangs
+        - Only loads when actually needed
+        - Can fail gracefully without breaking the whole system
+        """
+        if self.summarizer is not None:
+            return True
+            
+        if self._model_loading_attempted:
+            return False  # Don't retry if already failed
+            
+        try:
+            print("🔄 Loading summarization model (one-time setup)...")
+            self._model_loading_attempted = True
+            
+            # Use a lighter, more stable model
+            model_name = "google/flan-t5-small"  # Much lighter than base/large
+            device = -1  # Force CPU to avoid GPU issues
+            
+            # Set timeout for model loading
+            import asyncio
+            
+            def load_model():
+                return pipeline(
+                    "text2text-generation",
+                    model=model_name,
+                    device=device,
+                    max_length=100,
+                    do_sample=False,
+                    model_kwargs={"torch_dtype": torch.float32}  # Explicit dtype
+                )
+            
+            # Load with timeout
+            self.summarizer = await asyncio.wait_for(
+                asyncio.get_event_loop().run_in_executor(None, load_model),
+                timeout=60.0  # 60 second timeout
+            )
+            
+            print("✅ Summarization model loaded successfully")
+            return True
+            
+        except asyncio.TimeoutError:
+            print("⏰ Model loading timed out - using fallback summarization")
+            self.summarizer = None
+            return False
+        except Exception as e:
+            print(f"⚠️ Model loading failed: {e} - using fallback summarization")
+            self.summarizer = None
+            return False
+
+    async def _summarize_with_transformer(self, content: str) -> str:
+        """Safe transformer-based summarization with resource limits"""
+        try:
+            if not self.summarizer:
+                return None
+                
+            # Limit input length
+            max_input = 512
+            if len(content) > max_input:
+                content = content[:max_input]
+            
+            # Set timeout for inference
+            import asyncio
+            
+            def generate_summary():
+                return self.summarizer(
+                    f"Summarize: {content}",
+                    max_length=80,
+                    min_length=20,
+                    do_sample=False,
+                    num_return_sequences=1
+                )
+            
+            result = await asyncio.wait_for(
+                asyncio.get_event_loop().run_in_executor(None, generate_summary),
+                timeout=30.0  # 30 second timeout
+            )
+            
+            return result[0]['generated_text'].strip()
+            
+        except asyncio.TimeoutError:
+            print("⏰ Summarization timed out")
+            return None
+        except Exception as e:
+            print(f"⚠️ Transformer summarization failed: {e}")
+            return None

@@ -151,7 +151,7 @@ CHUNKING_STRATEGIES = [
 ]
 
 # RAG techniques
-RAG_TECHNIQUES = ["similarity_search", "mmr", "semantic_search"]
+RAG_TECHNIQUES = ["similarity_search", "hybrid_search", "hierarchical_search"]
 
 # Prompt templates for LLM answer generation
 PROMPT_TEMPLATES = {
